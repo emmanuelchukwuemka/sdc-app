@@ -1,0 +1,9 @@
+Keystore file: @mathscrusader__surrogate-donor-connect.jks
+
+Path to the Keystore file. C:\Users\UK USED\Desktop\DAVID\Projects\Chrisworld\App\surrogate\sdc-mobile\@mathscrusader__surrogate-donor-connect.jks
+
+Keystore password: c855eef4cc81c987eacd052e3da4b4b5
+
+Key alias: 3a17a5f0bbe35bd8b6adfc6fa10abbbc
+
+Key password: aa604aed0b75d62e085836c9c8cce96b

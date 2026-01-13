@@ -1,16 +1,15 @@
 {
   "expo": {
-    "name": "sdc-mobile",
+    "name": "Surrogate & Donor Connect",
     "slug": "sdc-mobile",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
-    "newArchEnabled": true,
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#16A34A"
     },
     "ios": {
       "supportsTablet": true
@@ -20,10 +19,31 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "edgeToEdgeEnabled": true
+      "edgeToEdgeEnabled": true,
+      "package": "com.mathscrusader.surrogatedonorconnect"
     },
     "web": {
       "favicon": "./assets/favicon.png"
+    },
+    "extra": {
+      "supabaseUrl": "https://dienzvhogrvdighmdyyg.supabase.co",
+      "supabaseAnonKey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRpZW56dmhvZ3J2ZGlnaG1keXlnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc2MDI3MjEsImV4cCI6MjA3MzE3ODcyMX0.CAFYbRAmeQMpuuSCSV047KverApNDss6GezLvvMiWzg",
+      "adminPin": "6284",
+      "referralBaseUrl": "https://sdc.example/ref",
+      "eas": {
+        "projectId": "20b30c8f-351c-41d9-8284-35891deedddc"
+      }
+    },
+    "plugins": [
+      "expo-asset"
+    ],
+    "scheme": "surrogate",
+    "owner": "mathscrusader",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/20b30c8f-351c-41d9-8284-35891deedddc"
     }
   }
 }
