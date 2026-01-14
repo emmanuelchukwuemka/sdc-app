@@ -8,46 +8,79 @@ import {
   TouchableOpacity,
   ScrollView,
   ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../lib/supabase';
 
 const BRAND_GREEN = '#16A34A';
-const GRAY = '#6B7280';
+const BRAND_GREEN_LIGHT = '#ECFDF5';
+const GRAY_TEXT = '#6B7280';
+const DARK_TEXT = '#111827';
+const BG_COLOR = '#F3F4F6';
 
-export default function DonorKycWizard({ userId, onFinish, onSkip }) {
-  const steps = ['Personal', 'Medical', 'Reproductive', 'ID', 'Referral', 'Emergency'];
+const STEPS = ['Personal', 'Medical', 'Reproductive', 'ID', 'Referral', 'Emergency'];
+
+// Reusable Input Component
+const CustomInput = ({ label, value, onChangeText, placeholder, keyboardType = 'default' }) => (
+  <View style={styles.inputGroup}>
+    <Text style={styles.inputLabel}>{label}</Text>
+    <TextInput
+      style={styles.input}
+      value={value}
+      onChangeText={onChangeText}
+      placeholder={placeholder}
+      placeholderTextColor="#9CA3AF"
+      keyboardType={keyboardType}
+    />
+  </View>
+);
+
+export default function DonorKycWizard({ userId, onFinish, onSkip, route, navigation }) {
+  const currentUserId = userId || route?.params?.userId;
+  const handleFinish = onFinish || (() => navigation?.goBack());
+  const handleSkip = onSkip || (() => navigation?.goBack());
+
   const [step, setStep] = useState(0);
   const [formData, setFormData] = useState({});
   const [saving, setSaving] = useState(false);
+  const [loading, setLoading] = useState(true);
 
-  // Load any existing progress
+  // Load existing data
   useEffect(() => {
     const load = async () => {
-      const { data, error } = await supabase
-        .from('kyc_documents')
-        .select('form_data, status')
-        .eq('user_id', userId)
-        .maybeSingle();
+      try {
+        setLoading(true);
+        const { data, error } = await supabase
+          .from('kyc_documents')
+          .select('form_data, status')
+          .eq('user_id', currentUserId)
+          .maybeSingle();
 
-      if (!error && data?.form_data) {
-        setFormData(data.form_data);
+        if (!error && data?.form_data) {
+          setFormData(data.form_data);
+        }
+      } catch (e) {
+        console.log("Error loading KYC data", e);
+      } finally {
+        setLoading(false);
       }
     };
     load();
-  }, [userId]);
+  }, [currentUserId]);
 
   const saveStep = async (final = false) => {
     setSaving(true);
     try {
       const payload = {
-        user_id: userId,
+        user_id: currentUserId,
         role: 'DONOR',
         status: final ? 'submitted' : 'in_progress',
         form_data: formData,
       };
 
-      // Upsert (insert if not exists, update if exists)
       const { error } = await supabase.from('kyc_documents').upsert(payload, {
         onConflict: 'user_id',
       });
@@ -55,239 +88,169 @@ export default function DonorKycWizard({ userId, onFinish, onSkip }) {
       if (error) throw error;
 
       if (final) {
-        onFinish?.();
+        handleFinish?.();
       } else {
-        if (step < steps.length - 1) setStep(step + 1);
+        if (step < STEPS.length - 1) setStep(step + 1);
       }
     } catch (e) {
       console.error('Save error', e);
+      alert('Failed to save progress. Please try again.');
     } finally {
       setSaving(false);
     }
   };
 
-  const progress = ((step + 1) / steps.length) * 100;
+  const progress = ((step + 1) / STEPS.length) * 100;
 
-  // --- STEP FORMS ---
-  const renderStep = () => {
+  const renderStepContent = () => {
     switch (step) {
       case 0:
         return (
           <>
-            <Text style={styles.sectionTitle}>Personal Details</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="First Name"
-              value={formData.first_name || ''}
-              onChangeText={(t) => setFormData({ ...formData, first_name: t })}
-            />
-            <TextInput
-              style={styles.input}
-              placeholder="Last Name"
-              value={formData.last_name || ''}
-              onChangeText={(t) => setFormData({ ...formData, last_name: t })}
-            />
-            <TextInput
-              style={styles.input}
-              placeholder="Date of Birth"
-              value={formData.dob || ''}
-              onChangeText={(t) => setFormData({ ...formData, dob: t })}
-            />
-            <TextInput
-              style={styles.input}
-              placeholder="Phone"
-              value={formData.phone || ''}
-              onChangeText={(t) => setFormData({ ...formData, phone: t })}
-            />
-            <TextInput
-              style={styles.input}
-              placeholder="Nationality"
-              value={formData.nationality || ''}
-              onChangeText={(t) => setFormData({ ...formData, nationality: t })}
-            />
+            <CustomInput label="First Name" placeholder="e.g. Jane" value={formData.first_name || ''} onChangeText={(t) => setFormData({ ...formData, first_name: t })} />
+            <CustomInput label="Last Name" placeholder="e.g. Doe" value={formData.last_name || ''} onChangeText={(t) => setFormData({ ...formData, last_name: t })} />
+            <CustomInput label="Date of Birth" placeholder="YYYY-MM-DD" value={formData.dob || ''} onChangeText={(t) => setFormData({ ...formData, dob: t })} />
+            <CustomInput label="Phone Number" placeholder="+1234567890" value={formData.phone || ''} onChangeText={(t) => setFormData({ ...formData, phone: t })} keyboardType="phone-pad" />
+            <CustomInput label="Nationality" placeholder="e.g. American" value={formData.nationality || ''} onChangeText={(t) => setFormData({ ...formData, nationality: t })} />
           </>
         );
       case 1:
         return (
           <>
-            <Text style={styles.sectionTitle}>Medical & Genetic</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Blood Group"
-              value={formData.blood_group || ''}
-              onChangeText={(t) => setFormData({ ...formData, blood_group: t })}
-            />
-            <TextInput
-              style={styles.input}
-              placeholder="Genotype"
-              value={formData.genotype || ''}
-              onChangeText={(t) => setFormData({ ...formData, genotype: t })}
-            />
-            <TextInput
-              style={styles.input}
-              placeholder="Height"
-              value={formData.height || ''}
-              onChangeText={(t) => setFormData({ ...formData, height: t })}
-            />
-            <TextInput
-              style={styles.input}
-              placeholder="Weight"
-              value={formData.weight || ''}
-              onChangeText={(t) => setFormData({ ...formData, weight: t })}
-            />
-            <TextInput
-              style={styles.input}
-              placeholder="Eye Color"
-              value={formData.eye_color || ''}
-              onChangeText={(t) => setFormData({ ...formData, eye_color: t })}
-            />
+            <CustomInput label="Blood Group" placeholder="e.g. O+" value={formData.blood_group || ''} onChangeText={(t) => setFormData({ ...formData, blood_group: t })} />
+            <CustomInput label="Genotype" placeholder="e.g. AA" value={formData.genotype || ''} onChangeText={(t) => setFormData({ ...formData, genotype: t })} />
+            <CustomInput label="Height" placeholder="e.g. 5'7" value={formData.height || ''} onChangeText={(t) => setFormData({ ...formData, height: t })} />
+            <CustomInput label="Weight" placeholder="e.g. 60kg" value={formData.weight || ''} onChangeText={(t) => setFormData({ ...formData, weight: t })} />
+            <CustomInput label="Eye Color" placeholder="e.g. Brown" value={formData.eye_color || ''} onChangeText={(t) => setFormData({ ...formData, eye_color: t })} />
           </>
         );
       case 2:
         return (
           <>
-            <Text style={styles.sectionTitle}>Reproductive & Screening</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Donated before? (Yes/No)"
-              value={formData.donated_before || ''}
-              onChangeText={(t) => setFormData({ ...formData, donated_before: t })}
-            />
-            <TextInput
-              style={styles.input}
-              placeholder="Number of donations"
-              value={formData.num_donations || ''}
-              onChangeText={(t) => setFormData({ ...formData, num_donations: t })}
-            />
-            <TextInput
-              style={styles.input}
-              placeholder="Known conditions?"
-              value={formData.conditions || ''}
-              onChangeText={(t) => setFormData({ ...formData, conditions: t })}
-            />
+            <CustomInput label="Donated Before?" placeholder="Yes / No" value={formData.donated_before || ''} onChangeText={(t) => setFormData({ ...formData, donated_before: t })} />
+            <CustomInput label="Number of Donations" placeholder="e.g. 0" value={formData.num_donations || ''} onChangeText={(t) => setFormData({ ...formData, num_donations: t })} keyboardType="numeric" />
+            <CustomInput label="Known Medical Conditions" placeholder="e.g. None" value={formData.conditions || ''} onChangeText={(t) => setFormData({ ...formData, conditions: t })} />
           </>
         );
       case 3:
         return (
           <>
-            <Text style={styles.sectionTitle}>Identification</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="ID Type (Passport / Driver’s License / NIN / etc)"
-              value={formData.id_type || ''}
-              onChangeText={(t) => setFormData({ ...formData, id_type: t })}
-            />
-            <TextInput
-              style={styles.input}
-              placeholder="ID Number"
-              value={formData.id_number || ''}
-              onChangeText={(t) => setFormData({ ...formData, id_number: t })}
-            />
+            <CustomInput label="ID Type" placeholder="Passport / Driver's License" value={formData.id_type || ''} onChangeText={(t) => setFormData({ ...formData, id_type: t })} />
+            <CustomInput label="ID Number" placeholder="Enter ID Number" value={formData.id_number || ''} onChangeText={(t) => setFormData({ ...formData, id_number: t })} />
+            <View style={styles.uploadPlaceholder}>
+              <Ionicons name="cloud-upload-outline" size={32} color={BRAND_GREEN} />
+              <Text style={styles.uploadText}>Upload ID Document (Optional)</Text>
+            </View>
           </>
         );
       case 4:
         return (
           <>
-            <Text style={styles.sectionTitle}>Referral Info</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Source of referral"
-              value={formData.referral || ''}
-              onChangeText={(t) => setFormData({ ...formData, referral: t })}
-            />
+            <CustomInput label="Source of Referral" placeholder="e.g. Friend, Google, Doctor" value={formData.referral || ''} onChangeText={(t) => setFormData({ ...formData, referral: t })} />
           </>
         );
       case 5:
         return (
           <>
-            <Text style={styles.sectionTitle}>Emergency Contact</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Name"
-              value={formData.emergency_name || ''}
-              onChangeText={(t) => setFormData({ ...formData, emergency_name: t })}
-            />
-            <TextInput
-              style={styles.input}
-              placeholder="Phone"
-              value={formData.emergency_phone || ''}
-              onChangeText={(t) => setFormData({ ...formData, emergency_phone: t })}
-            />
+            <CustomInput label="Emergency Contact Name" placeholder="Full Name" value={formData.emergency_name || ''} onChangeText={(t) => setFormData({ ...formData, emergency_name: t })} />
+            <CustomInput label="Emergency Contact Phone" placeholder="+1234..." value={formData.emergency_phone || ''} onChangeText={(t) => setFormData({ ...formData, emergency_phone: t })} keyboardType="phone-pad" />
           </>
         );
+      default:
+        return null;
     }
   };
 
-  return (
-    <SafeAreaView style={styles.safe}>
-      {/* Progress Bar */}
-      <View style={styles.progressBarContainer}>
-        <View style={[styles.progressBar, { width: `${progress}%` }]} />
+  if (loading) {
+    return (
+      <View style={[styles.container, styles.center]}>
+        <ActivityIndicator size="large" color={BRAND_GREEN} />
       </View>
+    );
+  }
 
-      <ScrollView contentContainerStyle={styles.container}>
-        {renderStep()}
+  return (
+    <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={{ flex: 1 }}
+      >
+        {/* Header */}
+        <View style={styles.header}>
+          <TouchableOpacity onPress={handleSkip} style={styles.closeBtn}>
+            <Ionicons name="close" size={24} color={DARK_TEXT} />
+          </TouchableOpacity>
+          <View style={styles.headerTextContainer}>
+            <Text style={styles.headerTitle}>Donor Application</Text>
+            <Text style={styles.stepIndicator}>Step {step + 1} of {STEPS.length}: {STEPS[step]}</Text>
+          </View>
+          <View style={{ width: 24 }} />
+        </View>
 
-        <View style={styles.btnRow}>
-          {step > 0 && (
-            <TouchableOpacity style={styles.secondaryBtn} onPress={() => setStep(step - 1)}>
-              <Text style={styles.secondaryText}>Back</Text>
-            </TouchableOpacity>
-          )}
-          <TouchableOpacity
-            style={[styles.primaryBtn, saving && { opacity: 0.7 }]}
-            onPress={() => saveStep(step === steps.length - 1)}
-            disabled={saving}
-          >
-            {saving ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <Text style={styles.primaryText}>
-                {step === steps.length - 1 ? 'Submit' : 'Next'}
-              </Text>
+        {/* Progress Bar */}
+        <View style={styles.progressBarContainer}>
+          <View style={[styles.progressBar, { width: `${progress}%` }]} />
+        </View>
+
+        <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+          <View style={styles.formCard}>
+            <Text style={styles.cardTitle}>{STEPS[step]}</Text>
+            {renderStepContent()}
+          </View>
+        </ScrollView>
+
+        {/* Footer Actions */}
+        <View style={styles.footer}>
+          <View style={styles.btnRow}>
+            {step > 0 && (
+              <TouchableOpacity style={styles.backBtn} onPress={() => setStep(step - 1)} disabled={saving}>
+                <Text style={styles.backBtnText}>Back</Text>
+              </TouchableOpacity>
             )}
+            <TouchableOpacity
+              style={[styles.nextBtn, saving && { opacity: 0.7 }]}
+              onPress={() => saveStep(step === STEPS.length - 1)}
+              disabled={saving}
+            >
+              {saving ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text style={styles.nextBtnText}>
+                  {step === STEPS.length - 1 ? 'Submit Application' : 'Next Step'}
+                </Text>
+              )}
+            </TouchableOpacity>
+          </View>
+          <TouchableOpacity onPress={handleSkip} style={styles.skipLink}>
+            <Text style={styles.skipLinkText}>Save & Exit</Text>
           </TouchableOpacity>
         </View>
 
-        {/* Skip option */}
-        <TouchableOpacity onPress={onSkip} style={{ marginTop: 10 }}>
-          <Text style={{ color: GRAY, textAlign: 'center' }}>Skip for now</Text>
-        </TouchableOpacity>
-      </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#F8FAF9' },
-  container: { padding: 16 },
-  sectionTitle: { fontSize: 18, fontWeight: '800', color: BRAND_GREEN, marginBottom: 12 },
-  input: {
-    borderWidth: 1,
-    borderColor: '#d1d5db',
-    borderRadius: 8,
-    padding: 10,
-    marginBottom: 12,
-    backgroundColor: '#fff',
-  },
-  btnRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 20 },
-  primaryBtn: {
-    flex: 1,
-    backgroundColor: BRAND_GREEN,
-    padding: 14,
-    borderRadius: 8,
+  safe: { flex: 1, backgroundColor: BG_COLOR },
+  container: { flex: 1 },
+  center: { justifyContent: 'center', alignItems: 'center' },
+
+  // Header
+  header: {
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    backgroundColor: BG_COLOR,
   },
-  primaryText: { color: '#fff', fontWeight: '700' },
-  secondaryBtn: {
-    backgroundColor: '#E5E7EB',
-    padding: 14,
-    borderRadius: 8,
-    marginRight: 8,
-    flex: 1,
-    alignItems: 'center',
-  },
-  secondaryText: { color: '#374151', fontWeight: '700' },
+  headerTextContainer: { alignItems: 'center' },
+  headerTitle: { fontSize: 16, fontWeight: '800', color: DARK_TEXT },
+  stepIndicator: { fontSize: 12, color: GRAY_TEXT, marginTop: 4 },
+  closeBtn: { padding: 4 },
+
+  // Progress
   progressBarContainer: {
     height: 4,
     backgroundColor: '#E5E7EB',
@@ -297,4 +260,112 @@ const styles = StyleSheet.create({
     height: 4,
     backgroundColor: BRAND_GREEN,
   },
+
+  // Content
+  scrollContent: {
+    padding: 20,
+  },
+  formCard: {
+    backgroundColor: '#fff',
+    borderRadius: 20,
+    padding: 24,
+    shadowColor: '#000',
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    elevation: 2,
+    marginBottom: 20,
+  },
+  cardTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: BRAND_GREEN,
+    marginBottom: 20,
+  },
+
+  // Inputs
+  inputGroup: { marginBottom: 16 },
+  inputLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#374151',
+    marginBottom: 8,
+  },
+  input: {
+    backgroundColor: '#F9FAFB',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    fontSize: 15,
+    color: DARK_TEXT,
+  },
+  uploadPlaceholder: {
+    borderWidth: 2,
+    borderColor: '#E5E7EB',
+    borderStyle: 'dashed',
+    borderRadius: 12,
+    padding: 30,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#F9FAFB',
+    marginTop: 10
+  },
+  uploadText: {
+    marginTop: 10,
+    color: GRAY_TEXT,
+    fontSize: 14
+  },
+
+  // Footer
+  footer: {
+    padding: 20,
+    backgroundColor: '#fff',
+    borderTopWidth: 1,
+    borderTopColor: '#F3F4F6',
+  },
+  btnRow: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  backBtn: {
+    paddingVertical: 14,
+    paddingHorizontal: 24,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+    backgroundColor: '#fff',
+  },
+  backBtnText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#374151',
+  },
+  nextBtn: {
+    flex: 1,
+    backgroundColor: BRAND_GREEN,
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: BRAND_GREEN,
+    shadowOpacity: 0.3,
+    shadowOffset: { width: 0, height: 4 },
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  nextBtnText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#fff',
+  },
+  skipLink: {
+    marginTop: 16,
+    alignItems: 'center',
+  },
+  skipLinkText: {
+    color: GRAY_TEXT,
+    fontSize: 14,
+    fontWeight: '500',
+  }
 });

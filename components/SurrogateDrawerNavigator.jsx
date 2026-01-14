@@ -5,7 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../lib/supabase';
 import CustomDrawerContent from './CustomDrawerContent';
 import SurrogateNavigator from './SurrogateNavigator'; // bottom tabs (dashboard)
-import SurrogateKyc from '../screens/SurrogateKyc';
+import SurrogateKyc from '../screens/KycSurrogate';
 import SurrogateAppointments from '../screens/SurrogateAppointments';
 import SurrogateProfile from '../screens/SurrogateProfile';
 import EditSurrogateProfile from '../screens/EditSurrogateProfile';
@@ -24,13 +24,19 @@ export default function SurrogateDrawerNavigator({ userId, onLogout }) {
   useEffect(() => {
     const fetchUser = async () => {
       const { data, error } = await supabase
-        .from('users')
-        .select('id, full_name, role, avatar_url')
-        .eq('id', userId)
+        .from('kyc_documents')
+        .select('user_id as id, role, form_data')
+        .eq('user_id', userId)
         .maybeSingle();
 
       if (!error && data) {
-        setUser(data);
+        // Extract user info from form_data
+        setUser({
+          id: data.id,
+          full_name: `${data.form_data?.first_name || ''} ${data.form_data?.last_name || ''}`.trim(),
+          role: data.role,
+          avatar_url: data.form_data?.profile_image || null
+        });
       }
     };
 

@@ -17,24 +17,7 @@ import SurrogateKycDetails from '../screens/SurrogateKycDetails';
 
 const Stack = createNativeStackNavigator();
 
-export default function AppNavigator({ userId, onLogout }) {
-  const [role, setRole] = useState(null);
-
-  useEffect(() => {
-    const loadRole = async () => {
-      const { data, error } = await supabase
-        .from('users')
-        .select('role')
-        .eq('id', userId)
-        .maybeSingle();
-
-      if (!error && data) {
-        setRole(data.role);
-      }
-    };
-    loadRole();
-  }, [userId]);
-
+export default function AppNavigator({ userId, role, onLogout }) {
   if (!role) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>

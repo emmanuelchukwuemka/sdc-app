@@ -1,24 +1,61 @@
 // screens/AdminConsole.jsx
 import React, { useEffect, useState, useCallback } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image, Alert, ActivityIndicator, FlatList, RefreshControl } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  Image,
+  Alert,
+  ActivityIndicator,
+  FlatList,
+  RefreshControl,
+  Dimensions
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase } from '../lib/supabase';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 
 const BRAND_GREEN = '#16A34A';
+const BRAND_DARK = '#14532D';
 const ACCENT_WHITE = '#FFFFFF';
+const BG_COLOR = '#F1F5F9';
+const TEXT_PRIMARY = '#1E293B';
+const TEXT_SECONDARY = '#64748B';
 
-const FILTERS = ['all', 'pending', 'approved', 'rejected'];
+const { width } = Dimensions.get('window');
 
-export default function AdminConsole({ onBack = () => {} }) {
+const FILTERS = [
+  { id: 'pending', label: 'Pending', icon: 'time' },
+  { id: 'approved', label: 'Approved', icon: 'checkmark-circle' },
+  { id: 'rejected', label: 'Rejected', icon: 'close-circle' },
+  { id: 'all', label: 'All Files', icon: 'documents' },
+];
+
+export default function AdminConsole({ onBack = () => { } }) {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [filter, setFilter] = useState('pending');
+  const [stats, setStats] = useState({ pending: 0, approved: 0, rejected: 0, all: 0 });
 
   const load = useCallback(async () => {
     try {
       setLoading(true);
+
+      // Fetch stats first (lightweight)
+      const { data: allRows } = await supabase.from('kyc_documents').select('status');
+      const newStats = { pending: 0, approved: 0, rejected: 0, all: 0 };
+      if (allRows) {
+        newStats.all = allRows.length;
+        allRows.forEach(r => {
+          if (newStats[r.status] !== undefined) newStats[r.status]++;
+        });
+      }
+      setStats(newStats);
+
+      // Fetch query based on filter
       let query = supabase
         .from('kyc_documents')
         .select('*')
@@ -44,63 +81,80 @@ export default function AdminConsole({ onBack = () => {} }) {
       const status = action === 'approve' ? 'approved' : 'rejected';
       const { error } = await supabase
         .from('kyc_documents')
-        .update({ status, reviewed_at: new Date().toISOString(), reviewed_by: 'admin@test' })
+        .update({ status, reviewed_at: new Date().toISOString(), reviewed_by: 'Admin' })
         .eq('id', id);
       if (error) throw error;
 
-      await load();
-
-      Alert.alert('Updated', `KYC was marked ${status}.`, [
-        filter !== status
-          ? { text: `Go to ${status}`, onPress: () => setFilter(status) }
-          : { text: 'OK' },
-      ]);
+      await load(); // Reload to update stats and list
+      Alert.alert('Success', `KYC Document marked as ${status}.`);
     } catch (e) {
       Alert.alert('Update failed', e?.message || String(e));
     }
   };
 
   const StatusBadge = ({ status }) => {
-    let bg = '#D1D5DB', color = '#111827';
-    if (status === 'approved') { bg = '#DCFCE7'; color = '#16A34A'; }
-    else if (status === 'pending') { bg = '#FEF9C3'; color = '#CA8A04'; }
-    else if (status === 'rejected') { bg = '#FEE2E2'; color = '#DC2626'; }
+    let bg = '#E2E8F0', color = '#475569', icon = 'help-circle';
+    if (status === 'approved') { bg = '#DCFCE7'; color = '#16A34A'; icon = 'checkmark-circle'; }
+    else if (status === 'pending') { bg = '#FEF9C3'; color = '#D97706'; icon = 'time'; }
+    else if (status === 'rejected') { bg = '#FEE2E2'; color = '#DC2626'; icon = 'close-circle'; }
+
     return (
       <View style={[styles.badge, { backgroundColor: bg }]}>
+        <Ionicons name={icon} size={14} color={color} style={{ marginRight: 4 }} />
         <Text style={[styles.badgeText, { color }]}>{status}</Text>
       </View>
     );
   };
 
   const renderItem = ({ item }) => {
-    const when = new Date(item.created_at).toLocaleString();
-    const reviewed = item.reviewed_at ? new Date(item.reviewed_at).toLocaleString() : null;
+    const when = new Date(item.created_at).toLocaleDateString();
+    const reviewed = item.reviewed_at ? new Date(item.reviewed_at).toLocaleDateString() : null;
 
     return (
       <View style={styles.card}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8, justifyContent: 'space-between' }}>
-          <Text style={styles.cardTitle}>KYC Record</Text>
+        <View style={styles.cardHeader}>
+          <View style={styles.userRow}>
+            <View style={styles.userAvatar}>
+              <Ionicons name="person" size={20} color={ACCENT_WHITE} />
+            </View>
+            <View>
+              <Text style={styles.userIdText}>User ID: ...{item.user_id?.slice(-4)}</Text>
+              <Text style={styles.dateText}>Uploaded: {when}</Text>
+            </View>
+          </View>
           <StatusBadge status={item.status} />
         </View>
 
-        <Text style={styles.meta}>User: <Text selectable>{item.user_id || '—'}</Text></Text>
-        <Text style={styles.meta}>Uploaded: {when}</Text>
-        {reviewed && <Text style={styles.meta}>Reviewed: {reviewed} · by {item.reviewed_by || '—'}</Text>}
-
         {item.file_url ? (
-          <Image source={{ uri: item.file_url }} style={styles.preview} />
+          <Image source={{ uri: item.file_url }} style={styles.preview} resizeMode="cover" />
         ) : (
           <View style={[styles.preview, styles.previewEmpty]}>
-            <Text style={{ color: '#9CA3AF' }}>No image</Text>
+            <Ionicons name="image-outline" size={40} color={TEXT_SECONDARY} />
+            <Text style={{ color: TEXT_SECONDARY, marginTop: 8 }}>No image available</Text>
           </View>
+        )}
+
+        {reviewed && (
+          <Text style={styles.reviewMeta}>
+            <Ionicons name="shield-checkmark-outline" size={14} /> Reviewed on {reviewed}
+          </Text>
         )}
 
         {item.status === 'pending' && (
           <View style={styles.actionsRow}>
-            <TouchableOpacity style={styles.rejectBtn} onPress={() => decide(item.id, 'reject')}>
+            <TouchableOpacity
+              style={[styles.actionBtn, styles.rejectBtn]}
+              onPress={() => decide(item.id, 'reject')}
+            >
+              <Ionicons name="close" size={20} color="#DC2626" />
               <Text style={styles.rejectText}>Reject</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.approveBtn} onPress={() => decide(item.id, 'approve')}>
+
+            <TouchableOpacity
+              style={[styles.actionBtn, styles.approveBtn]}
+              onPress={() => decide(item.id, 'approve')}
+            >
+              <Ionicons name="checkmark" size={20} color={ACCENT_WHITE} />
               <Text style={styles.approveText}>Approve</Text>
             </TouchableOpacity>
           </View>
@@ -109,88 +163,282 @@ export default function AdminConsole({ onBack = () => {} }) {
     );
   };
 
-  const FilterPill = ({ value }) => {
-    const active = filter === value;
-    return (
-      <TouchableOpacity
-        onPress={() => setFilter(value)}
-        style={[styles.pill, active && styles.pillActive]}
-      >
-        <Text style={[styles.pillText, active && styles.pillTextActive]}>
-          {value[0].toUpperCase() + value.slice(1)}
-        </Text>
-      </TouchableOpacity>
-    );
-  };
-
   return (
-    <SafeAreaView style={styles.safe} edges={['top','bottom','left','right']}>
-      <View style={styles.container}>
-        {/* Header with Back */}
-        <View style={styles.topbar}>
-          <TouchableOpacity style={styles.backBtn} onPress={onBack}>
-            <Ionicons name="arrow-back" size={20} color="#fff" />
-            <Text style={styles.backText}>Back</Text>
-          </TouchableOpacity>
-          <Text style={styles.header}>Admin · KYC Console</Text>
-        </View>
-
-        {/* Filters */}
-        <View style={styles.filtersRow}>
-          {FILTERS.map((f) => <FilterPill key={f} value={f} />)}
-        </View>
-
-        {loading ? (
-          <ActivityIndicator size="large" color={BRAND_GREEN} />
-        ) : (
-          <FlatList
-            data={rows}
-            keyExtractor={(x) => x.id}
-            renderItem={renderItem}
-            contentContainerStyle={{ paddingBottom: 20 }}
-            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} />}
-            ListEmptyComponent={<Text style={styles.empty}>No records in this view.</Text>}
-          />
-        )}
+    <View style={styles.mainContainer}>
+      {/* Header */}
+      <View style={styles.headerContainer}>
+        <LinearGradient
+          colors={[BRAND_GREEN, BRAND_DARK]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.headerGradient}
+        >
+          <SafeAreaView edges={['top', 'left', 'right']} style={styles.headerContent}>
+            <View style={styles.headerRow}>
+              <TouchableOpacity onPress={onBack} style={styles.backButton}>
+                <Ionicons name="arrow-back" size={24} color={ACCENT_WHITE} />
+              </TouchableOpacity>
+              <View>
+                <Text style={styles.headerTitle}>KYC Verification</Text>
+                <Text style={styles.headerSubtitle}>{stats.pending} documents pending review</Text>
+              </View>
+            </View>
+          </SafeAreaView>
+        </LinearGradient>
       </View>
-    </SafeAreaView>
+
+      {/* Tabs / Filters */}
+      <View style={styles.tabsContainer}>
+        <FlatList
+          data={FILTERS}
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          keyExtractor={item => item.id}
+          contentContainerStyle={{ paddingHorizontal: 16 }}
+          renderItem={({ item }) => {
+            const isActive = filter === item.id;
+            return (
+              <TouchableOpacity
+                style={[styles.tab, isActive && styles.tabActive]}
+                onPress={() => setFilter(item.id)}
+              >
+                <Ionicons
+                  name={item.icon}
+                  size={16}
+                  color={isActive ? ACCENT_WHITE : TEXT_SECONDARY}
+                  style={{ marginRight: 6 }}
+                />
+                <Text style={[styles.tabText, isActive && styles.tabTextActive]}>
+                  {item.label} ({stats[item.id] || 0})
+                </Text>
+              </TouchableOpacity>
+            );
+          }}
+        />
+      </View>
+
+      {/* Content */}
+      <FlatList
+        data={rows}
+        keyExtractor={(item) => item.id}
+        renderItem={renderItem}
+        contentContainerStyle={styles.listContent}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={() => { setRefreshing(true); load(); }}
+            tintColor={BRAND_GREEN}
+          />
+        }
+        ListEmptyComponent={
+          !loading && (
+            <View style={styles.emptyContainer}>
+              <Ionicons name="folder-open-outline" size={64} color="#CBD5E1" />
+              <Text style={styles.emptyText}>No {filter} documents found</Text>
+            </View>
+          )
+        }
+        ListFooterComponent={loading && <ActivityIndicator color={BRAND_GREEN} style={{ marginTop: 20 }} />}
+      />
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#F8FAF9' },
-  container: { flex: 1, backgroundColor: '#F8FAF9', padding: 16 },
-
-  topbar: { flexDirection: 'row', alignItems: 'center', marginBottom: 16 },
-  header: { fontSize: 22, fontWeight: '900', color: BRAND_GREEN, marginLeft: 12 },
-
-  backBtn: { flexDirection: 'row', alignItems: 'center', backgroundColor: BRAND_GREEN, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8 },
-  backText: { color: '#fff', fontWeight: '800', marginLeft: 6 },
-
-  filtersRow: { flexDirection: 'row', marginBottom: 12, flexWrap: 'wrap', gap: 8 },
-  pill: { backgroundColor: '#E5F5EA', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 999 },
-  pillActive: { backgroundColor: BRAND_GREEN },
-  pillText: { color: BRAND_GREEN, fontWeight: '800' },
-  pillTextActive: { color: '#fff' },
-
-  card: {
-    backgroundColor: ACCENT_WHITE, borderRadius: 16, padding: 14, marginTop: 10,
-    elevation: 2, shadowColor: '#000', shadowOpacity: 0.06, shadowOffset: { width: 0, height: 3 }, shadowRadius: 6
+  mainContainer: {
+    flex: 1,
+    backgroundColor: BG_COLOR,
   },
-  cardTitle: { color: BRAND_GREEN, fontWeight: '900', fontSize: 16 },
+  headerContainer: {
+    backgroundColor: BRAND_GREEN,
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
+    overflow: 'hidden',
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
+    marginBottom: 16,
+  },
+  headerGradient: {
+    paddingBottom: 24,
+  },
+  headerContent: {
+    paddingHorizontal: 20,
+    paddingTop: 10,
+  },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  backButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 16,
+  },
+  headerTitle: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: ACCENT_WHITE,
+  },
+  headerSubtitle: {
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.85)',
+    fontWeight: '500',
+  },
 
-  badge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },
-  badgeText: { fontWeight: '700', textTransform: 'capitalize', fontSize: 12 },
+  // Tabs
+  tabsContainer: {
+    height: 50,
+    marginBottom: 8,
+  },
+  tab: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 20,
+    backgroundColor: ACCENT_WHITE,
+    marginRight: 10,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  tabActive: {
+    backgroundColor: BRAND_GREEN,
+    borderColor: BRAND_GREEN,
+  },
+  tabText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: TEXT_SECONDARY,
+  },
+  tabTextActive: {
+    color: ACCENT_WHITE,
+  },
 
-  meta: { color: '#374151', marginBottom: 4 },
-  preview: { width: '100%', height: 180, borderRadius: 12, marginTop: 8, backgroundColor: '#F3F4F6' },
-  previewEmpty: { alignItems: 'center', justifyContent: 'center' },
+  // List
+  listContent: {
+    paddingHorizontal: 16,
+    paddingBottom: 40,
+  },
+  card: {
+    backgroundColor: ACCENT_WHITE,
+    borderRadius: 20,
+    padding: 16,
+    marginBottom: 16,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOpacity: 0.05,
+    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 4,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  cardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 12,
+  },
+  userRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  userAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#3B82F6',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  userIdText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: TEXT_PRIMARY,
+  },
+  dateText: {
+    fontSize: 12,
+    color: TEXT_SECONDARY,
+  },
+  badge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 12,
+  },
+  badgeText: {
+    fontSize: 11,
+    fontWeight: '700',
+    textTransform: 'capitalize',
+  },
+  preview: {
+    width: '100%',
+    height: 200,
+    borderRadius: 12,
+    backgroundColor: '#F3F4F6',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  previewEmpty: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
 
-  actionsRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 12 },
-  rejectBtn: { backgroundColor: '#FEE2E2', borderRadius: 12, paddingVertical: 10, paddingHorizontal: 16 },
-  rejectText: { color: '#B91C1C', fontWeight: '800' },
-  approveBtn: { backgroundColor: BRAND_GREEN, borderRadius: 12, paddingVertical: 10, paddingHorizontal: 16 },
-  approveText: { color: '#fff', fontWeight: '800' },
+  reviewMeta: {
+    fontSize: 12,
+    color: TEXT_SECONDARY,
+    marginTop: 12,
+    fontStyle: 'italic',
+  },
 
-  empty: { color: '#6B7280', textAlign: 'center', marginTop: 16 },
+  actionsRow: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 16,
+  },
+  actionBtn: {
+    flex: 1,
+    height: 44,
+    borderRadius: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  rejectBtn: {
+    backgroundColor: '#FEF2F2',
+    borderWidth: 1,
+    borderColor: '#FCA5A5',
+  },
+  approveBtn: {
+    backgroundColor: BRAND_GREEN,
+  },
+  rejectText: {
+    color: '#DC2626',
+    fontWeight: '700',
+    marginLeft: 6,
+  },
+  approveText: {
+    color: ACCENT_WHITE,
+    fontWeight: '700',
+    marginLeft: 6,
+  },
+
+  emptyContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 60,
+  },
+  emptyText: {
+    color: TEXT_SECONDARY,
+    marginTop: 16,
+    fontSize: 16,
+  },
 });

@@ -62,11 +62,11 @@ try {
 } catch (err) {
   console.warn('Could not access Constants config:', err);
 }
-const ADMIN_PIN = extra.adminPin || '6284';
+// ADMIN_PIN is deprecated - admin access now uses a separate flow
+// const ADMIN_PIN = extra.adminPin || '6284';
 
 export default function RoleSelection({ onSelect }) {
-  const [pinModal, setPinModal] = useState(false);
-  const [pin, setPin] = useState('');
+
   const [selectedRole, setSelectedRole] = useState(null);
   const [isAnimating, setIsAnimating] = useState(false);
   const scaleAnim = useState(new Animated.Value(1))[0];
@@ -94,21 +94,7 @@ export default function RoleSelection({ onSelect }) {
   const handleAlertClose = () => {
     setAlertVisible(false);
   };
-  const handleAdminTry = () => setPinModal(true);
-  const closeModal = () => {
-    setPin('');
-    setPinModal(false);
-  };
 
-  const submitPin = () => {
-    if (pin.trim() === ADMIN_PIN) {
-      setPin('');
-      setPinModal(false);
-      onSelect('ADMIN');
-    } else {
-      showAlert('Access denied', 'Wrong PIN', 'error');
-    }
-  };
 
   const selectRole = (roleKey) => {
     if (isAnimating) return;
@@ -233,11 +219,11 @@ export default function RoleSelection({ onSelect }) {
               </View>
             </View>
 
-            {/* Admin Access Button */}
+            {/* Admin Access Link */}
             <View style={styles.adminSectionInHeader}>
               <TouchableOpacity
                 style={styles.adminButtonInHeader}
-                onPress={() => setPinModal(true)}
+                onPress={() => onSelect('ADMIN_LOGIN')}
                 activeOpacity={0.8}
               >
                 <Ionicons name="shield-checkmark" size={18} color={COLORS.neutral.white} style={styles.adminButtonIcon} />
@@ -253,56 +239,7 @@ export default function RoleSelection({ onSelect }) {
         <View style={styles.bottomSpacer} />
       </SafeAreaView>
 
-      {/* Premium Admin Modal */}
-      <Modal visible={pinModal} transparent animationType="fade" onRequestClose={closeModal}>
-        <View style={styles.modalBackdrop}>
-          <LinearGradient
-            colors={GRADIENTS.dark}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.modalCard}
-          >
-            <View style={styles.modalHeader}>
-              <View style={styles.modalTitleContainer}>
-                <Ionicons name="shield-checkmark" size={28} color={COLORS.success.main} style={styles.modalTitleIcon} />
-                <Text style={styles.modalTitle}>Admin Access</Text>
-              </View>
-              <TouchableOpacity
-                onPress={closeModal}
-                style={styles.closeButton}
-              >
-                <Ionicons name="close" size={24} color={COLORS.neutral.subtle} />
-              </TouchableOpacity>
-            </View>
 
-            <Text style={styles.modalDescription}>
-              Enter your secure PIN to access the administrative dashboard
-            </Text>
-
-            <TextInput
-              value={pin}
-              onChangeText={setPin}
-              placeholder="**********"
-              placeholderTextColor={COLORS.neutral.subtle}
-              keyboardType="number-pad"
-              secureTextEntry
-              style={styles.input}
-              maxLength={4}
-              autoFocus
-              selectionColor={COLORS.primary.main}
-            />
-
-            <View style={styles.modalActions}>
-              <TouchableOpacity style={[styles.modalButton, styles.cancelButton]} onPress={closeModal}>
-                <Text style={[styles.modalButtonText, styles.cancelButtonText]}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={[styles.modalButton, styles.submitButton]} onPress={submitPin}>
-                <Text style={[styles.modalButtonText, styles.submitButtonText]}>Access Dashboard</Text>
-              </TouchableOpacity>
-            </View>
-          </LinearGradient>
-        </View>
-      </Modal>
 
       {/* Alert Modal */}
       <AlertModal

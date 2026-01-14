@@ -1,30 +1,54 @@
 // screens/AdminFinance.jsx
 import React, { useCallback, useEffect, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, FlatList, Alert, ActivityIndicator, ScrollView } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  FlatList,
+  Alert,
+  ActivityIndicator,
+  Dimensions
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { supabase } from '../lib/supabase';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
+import { supabase } from '../lib/supabase';
 
 const BRAND_GREEN = '#16A34A';
+const BRAND_DARK = '#14532D';
 const ACCENT_WHITE = '#FFFFFF';
+const BG_COLOR = '#F8FAFC'; // Cool Gray 50
+const TEXT_PRIMARY = '#1E293B';
+const TEXT_SECONDARY = '#64748B';
 
-const SUB_FILTERS = ['all', 'pending', 'active', 'canceled'];
-const TX_FILTERS  = ['all', 'held', 'released', 'failed'];
+const FILTERS = [
+  { id: 'all', label: 'All' },
+  { id: 'active', label: 'Active' },
+  { id: 'pending', label: 'Pending' },
+  { id: 'canceled', label: 'Canceled' },
+];
 
-export default function AdminFinance({ onBack = () => {} }) {
-  // Subscriptions state
+const TX_FILTERS = [
+  { id: 'all', label: 'All' },
+  { id: 'released', label: 'Released' },
+  { id: 'held', label: 'Held' },
+  { id: 'failed', label: 'Failed' },
+];
+
+export default function AdminFinance({ onBack = () => { } }) {
+  const [activeTab, setActiveTab] = useState('subs');
+
   const [subs, setSubs] = useState([]);
   const [subsFilter, setSubsFilter] = useState('all');
   const [subsLoading, setSubsLoading] = useState(true);
   const [subsRange, setSubsRange] = useState([0, 19]);
 
-  // Transactions state
   const [txs, setTxs] = useState([]);
   const [txFilter, setTxFilter] = useState('all');
   const [txLoading, setTxLoading] = useState(true);
   const [txRange, setTxRange] = useState([0, 19]);
 
-  // Summary state
   const [summary, setSummary] = useState({ subs: 0, volume: 0, commission: 0 });
 
   const loadSummary = useCallback(async () => {
@@ -51,7 +75,7 @@ export default function AdminFinance({ onBack = () => {} }) {
     }
   }, []);
 
-  const loadSubs = useCallback(async (reset=false) => {
+  const loadSubs = useCallback(async (reset = false) => {
     try {
       setSubsLoading(true);
       let query = supabase.from('subscriptions').select('*').order('created_at', { ascending: false });
@@ -68,7 +92,7 @@ export default function AdminFinance({ onBack = () => {} }) {
     }
   }, [subsFilter, subsRange, subs]);
 
-  const loadTxs = useCallback(async (reset=false) => {
+  const loadTxs = useCallback(async (reset = false) => {
     try {
       setTxLoading(true);
       let query = supabase.from('escrow_transactions').select('*').order('created_at', { ascending: false });
@@ -89,171 +113,447 @@ export default function AdminFinance({ onBack = () => {} }) {
   useEffect(() => { loadTxs(true); }, [txFilter]);
   useEffect(() => { loadSummary(); }, []);
 
-  const moreSubs = () => setSubsRange(([a,b]) => [0, b+20]);
-  const moreTxs  = () => setTxRange(([a,b]) => [0, b+20]);
+  const moreSubs = () => setSubsRange(([a, b]) => [0, b + 20]);
+  const moreTxs = () => setTxRange(([a, b]) => [0, b + 20]);
 
-  const StatusBadge = ({ status }) => {
-    let bg = '#D1D5DB', color = '#111827'; // default gray
-    if (['active','released'].includes(status)) { bg = '#DCFCE7'; color = '#16A34A'; }
-    else if (['pending','held'].includes(status)) { bg = '#FEF9C3'; color = '#CA8A04'; }
-    else if (['canceled','failed','rejected'].includes(status)) { bg = '#FEE2E2'; color = '#DC2626'; }
+  const StatCard = ({ label, value, icon, subtext }) => (
+    <View style={styles.statCard}>
+      <View style={styles.statTop}>
+        <View style={styles.statIconCircle}>
+          <Ionicons name={icon} size={20} color={ACCENT_WHITE} />
+        </View>
+        <Text style={styles.statLabel}>{label}</Text>
+      </View>
+      <Text style={styles.statValue}>{value}</Text>
+      {subtext && <Text style={styles.statSub}>{subtext}</Text>}
+    </View>
+  );
+
+  const StatusPill = ({ status }) => {
+    let color = '#94A3B8';
+    let bg = '#F1F5F9';
+
+    if (['active', 'released'].includes(status)) { color = '#16A34A'; bg = '#DCFCE7'; }
+    if (['pending', 'held'].includes(status)) { color = '#D97706'; bg = '#FEF9C3'; }
+    if (['canceled', 'failed'].includes(status)) { color = '#DC2626'; bg = '#FEE2E2'; }
+
     return (
-      <View style={[styles.badge, { backgroundColor: bg }]}>
-        <Text style={[styles.badgeText, { color }]}>{status || '—'}</Text>
+      <View style={[styles.pill, { backgroundColor: bg }]}>
+        <View style={[styles.dot, { backgroundColor: color }]} />
+        <Text style={[styles.pillText, { color }]}>{status}</Text>
       </View>
     );
   };
 
   const renderSub = ({ item }) => (
-    <View style={styles.card}>
-      <Text style={styles.cardTitle}>Subscription</Text>
-      <Text style={styles.meta}>User: <Text selectable>{item.user_id || '—'}</Text></Text>
-      <Text style={styles.meta}>Plan: {item.plan || '—'} · Period: {item.period || '—'}</Text>
-      <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4 }}>
-        <Text style={styles.meta}>Status: </Text>
-        <StatusBadge status={item.status} />
+    <View style={styles.listItem}>
+      <View style={styles.itemIcon}>
+        <Ionicons name="card" size={24} color={BRAND_GREEN} />
       </View>
-      {item.renewal_date && <Text style={styles.meta}>Renewal: {new Date(item.renewal_date).toLocaleDateString()}</Text>}
-      <Text style={styles.meta}>Created: {new Date(item.created_at).toLocaleString()}</Text>
+      <View style={{ flex: 1, paddingHorizontal: 12 }}>
+        <Text style={styles.itemTitle}>{item.plan || 'Subscription'}</Text>
+        <Text style={styles.itemMeta}>User: ...{item.user_id?.slice(-6)}</Text>
+      </View>
+      <View style={{ alignItems: 'flex-end' }}>
+        <StatusPill status={item.status} />
+        <Text style={styles.itemDate}>{new Date(item.created_at).toLocaleDateString()}</Text>
+      </View>
     </View>
   );
 
-  const renderTx = ({ item }) => (
-    <View style={styles.card}>
-      <Text style={styles.cardTitle}>Transaction</Text>
-      <Text style={styles.meta}>User: <Text selectable>{item.user_id || '—'}</Text></Text>
-      <Text style={styles.meta}>Type: {item.type || '—'} · Amount: {item.amount} {item.currency || ''}</Text>
-      <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4 }}>
-        <Text style={styles.meta}>Status: </Text>
-        <StatusBadge status={item.status} />
+  const renderTx = ({ item }) => {
+    const isCommission = item.type === 'commission';
+    return (
+      <View style={styles.listItem}>
+        <View style={[styles.itemIcon, isCommission && { backgroundColor: '#FDF2F8' }]}>
+          <Ionicons
+            name={isCommission ? 'pricetag' : 'swap-horizontal'}
+            size={24}
+            color={isCommission ? '#EC4899' : '#3B82F6'}
+          />
+        </View>
+        <View style={{ flex: 1, paddingHorizontal: 12 }}>
+          <Text style={styles.itemTitle}>{isCommission ? 'Commission' : 'Transaction'}</Text>
+          <Text style={[styles.itemRef, { fontFamily: 'monospace' }]}>{item.reference?.slice(0, 10)}</Text>
+        </View>
+        <View style={{ alignItems: 'flex-end' }}>
+          <Text style={styles.amountText}>
+            {isCommission ? '+' : ''}{item.amount} {item.currency}
+          </Text>
+          <StatusPill status={item.status} />
+        </View>
       </View>
-      {item.reference && <Text style={styles.meta}>Ref: <Text selectable>{item.reference}</Text></Text>}
-      <Text style={styles.meta}>Created: {new Date(item.created_at).toLocaleString()}</Text>
-    </View>
-  );
+    );
+  };
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top','bottom','left','right']}>
-      <ScrollView contentContainerStyle={styles.container}>
-        
-        {/* Header with Back */}
-        <View style={styles.topbar}>
-          <TouchableOpacity style={styles.backBtn} onPress={onBack}>
-            <Ionicons name="arrow-back" size={20} color="#fff" />
-            <Text style={styles.backText}>Back</Text>
-          </TouchableOpacity>
-          <Text style={styles.header}>Admin · Finance</Text>
+    <View style={styles.mainContainer}>
+      <LinearGradient
+        colors={[BRAND_GREEN, BRAND_DARK]}
+        style={styles.headerArea}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+      >
+        <SafeAreaView edges={['top', 'left', 'right']} style={{ flex: 1 }}>
+          <View style={styles.navBar}>
+            <TouchableOpacity onPress={onBack} style={styles.backBtn}>
+              <Ionicons name="arrow-back" size={24} color={ACCENT_WHITE} />
+            </TouchableOpacity>
+            <Text style={styles.navTitle}>Financial Overview</Text>
+          </View>
+
+          {/* Stats Dashboard */}
+          <View style={styles.statsContainer}>
+            <StatCard
+              label="Active Subs"
+              value={summary.subs}
+              icon="people-circle"
+              subtext="+2 this week"
+            />
+            <View style={styles.vertDivider} />
+            <StatCard
+              label="Volume"
+              value={`₦${summary.volume.toLocaleString()}`}
+              icon="wallet"
+            />
+            <View style={styles.vertDivider} />
+            <StatCard
+              label="Revenue"
+              value={`₦${summary.commission.toLocaleString()}`}
+              icon="trending-up"
+            />
+          </View>
+        </SafeAreaView>
+      </LinearGradient>
+
+      <View style={styles.bodyContainer}>
+        {/* Modern Tabs */}
+        <View style={styles.tabContainer}>
+          <View style={styles.tabTrack}>
+            <TouchableOpacity
+              style={[styles.tabItem, activeTab === 'subs' && styles.tabItemActive]}
+              onPress={() => setActiveTab('subs')}
+            >
+              <Text style={[styles.tabLabel, activeTab === 'subs' && styles.tabLabelActive]}>Subscriptions</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.tabItem, activeTab === 'txs' && styles.tabItemActive]}
+              onPress={() => setActiveTab('txs')}
+            >
+              <Text style={[styles.tabLabel, activeTab === 'txs' && styles.tabLabelActive]}>Transactions</Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
-        {/* Summary */}
-        <View style={styles.summaryBar}>
-          <View style={styles.summaryItem}>
-            <Text style={styles.summaryLabel}>Active Subs</Text>
-            <Text style={styles.summaryValue}>{summary.subs}</Text>
-          </View>
-          <View style={styles.summaryItem}>
-            <Text style={styles.summaryLabel}>Released Vol.</Text>
-            <Text style={styles.summaryValue}>{summary.volume}</Text>
-          </View>
-          <View style={styles.summaryItem}>
-            <Text style={styles.summaryLabel}>Commissions</Text>
-            <Text style={styles.summaryValue}>{summary.commission}</Text>
-          </View>
+        {/* Filters List */}
+        <View style={styles.filtersContainer}>
+          <FlatList
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            data={activeTab === 'subs' ? FILTERS : TX_FILTERS}
+            keyExtractor={item => item.id}
+            contentContainerStyle={{ paddingHorizontal: 20 }}
+            renderItem={({ item }) => {
+              const current = activeTab === 'subs' ? subsFilter : txFilter;
+              const setFn = activeTab === 'subs' ? setSubsFilter : setTxFilter;
+              const isActive = current === item.id;
+              return (
+                <TouchableOpacity
+                  style={[styles.filterChip, isActive && styles.filterChipActive]}
+                  onPress={() => setFn(item.id)}
+                >
+                  <Text style={[styles.filterText, isActive && styles.filterTextActive]}>{item.label}</Text>
+                </TouchableOpacity>
+              )
+            }}
+          />
         </View>
 
-        {/* Subscriptions */}
-        <Text style={styles.sectionTitle}>Subscriptions</Text>
-        <View style={styles.filtersRow}>
-          {SUB_FILTERS.map((f) => <TouchableOpacity key={f} onPress={() => setSubsFilter(f)} style={[styles.pill, subsFilter === f && styles.pillActive]}>
-            <Text style={[styles.pillText, subsFilter === f && styles.pillTextActive]}>{f[0].toUpperCase()+f.slice(1)}</Text>
-          </TouchableOpacity>)}
-        </View>
-        {subsLoading && subs.length === 0 ? (
-          <ActivityIndicator size="small" color={BRAND_GREEN} />
-        ) : (
-          <>
+        {/* Main List */}
+        <View style={{ flex: 1, backgroundColor: BG_COLOR }}>
+          {activeTab === 'subs' ? (
             <FlatList
               data={subs}
-              keyExtractor={(x, i) => x.id ?? `s-${i}`}
+              keyExtractor={(x, i) => x.id || `s-${i}`}
               renderItem={renderSub}
-              scrollEnabled={false}
-              ListEmptyComponent={<Text style={styles.empty}>No subscriptions.</Text>}
-              contentContainerStyle={{ paddingBottom: 6 }}
+              contentContainerStyle={styles.listContent}
+              showsVerticalScrollIndicator={false}
+              ListEmptyComponent={!subsLoading && <Text style={styles.emptyText}>No subscriptions found.</Text>}
+              ListFooterComponent={
+                subs.length > 0 && (
+                  <TouchableOpacity style={styles.loadMoreBtn} onPress={moreSubs}>
+                    <Text style={styles.loadMoreText}>Load More</Text>
+                  </TouchableOpacity>
+                )
+              }
             />
-            {subs.length > 0 && (
-              <TouchableOpacity style={styles.moreBtn} onPress={moreSubs}>
-                <Text style={styles.moreText}>Load more</Text>
-              </TouchableOpacity>
-            )}
-          </>
-        )}
-
-        {/* Transactions */}
-        <Text style={[styles.sectionTitle, { marginTop: 20 }]}>Transactions</Text>
-        <View style={styles.filtersRow}>
-          {TX_FILTERS.map((f) => <TouchableOpacity key={f} onPress={() => setTxFilter(f)} style={[styles.pill, txFilter === f && styles.pillActive]}>
-            <Text style={[styles.pillText, txFilter === f && styles.pillTextActive]}>{f[0].toUpperCase()+f.slice(1)}</Text>
-          </TouchableOpacity>)}
-        </View>
-        {txLoading && txs.length === 0 ? (
-          <ActivityIndicator size="small" color={BRAND_GREEN} />
-        ) : (
-          <>
+          ) : (
             <FlatList
               data={txs}
-              keyExtractor={(x, i) => x.id ?? `t-${i}`}
+              keyExtractor={(x, i) => x.id || `t-${i}`}
               renderItem={renderTx}
-              scrollEnabled={false}
-              ListEmptyComponent={<Text style={styles.empty}>No transactions.</Text>}
-              contentContainerStyle={{ paddingBottom: 20 }}
+              contentContainerStyle={styles.listContent}
+              showsVerticalScrollIndicator={false}
+              ListEmptyComponent={!txLoading && <Text style={styles.emptyText}>No transactions found.</Text>}
+              ListFooterComponent={
+                txs.length > 0 && (
+                  <TouchableOpacity style={styles.loadMoreBtn} onPress={moreTxs}>
+                    <Text style={styles.loadMoreText}>Load More</Text>
+                  </TouchableOpacity>
+                )
+              }
             />
-            {txs.length > 0 && (
-              <TouchableOpacity style={styles.moreBtn} onPress={moreTxs}>
-                <Text style={styles.moreText}>Load more</Text>
-              </TouchableOpacity>
-            )}
-          </>
-        )}
-      </ScrollView>
-    </SafeAreaView>
+          )}
+        </View>
+      </View>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#F8FAF9' },
-  container: { padding: 16, backgroundColor: '#F8FAF9' },
-
-  topbar: { flexDirection: 'row', alignItems: 'center', marginBottom: 16 },
-  header: { fontSize: 22, fontWeight: '900', color: BRAND_GREEN, marginLeft: 12 },
-
-  backBtn: { flexDirection: 'row', alignItems: 'center', backgroundColor: BRAND_GREEN, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8 },
-  backText: { color: '#fff', fontWeight: '800', marginLeft: 6 },
-
-  summaryBar: { flexDirection: 'row', justifyContent: 'space-around', paddingVertical: 12, backgroundColor: '#E5F5EA', borderRadius: 12, marginBottom: 20 },
-  summaryItem: { alignItems: 'center' },
-  summaryLabel: { fontSize: 12, color: '#374151' },
-  summaryValue: { fontSize: 18, fontWeight: '900', color: BRAND_GREEN },
-
-  sectionTitle: { marginTop: 6, marginBottom: 6, color: '#111827', fontWeight: '800', fontSize: 16 },
-
-  filtersRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 6 },
-  pill: { backgroundColor: '#E5F5EA', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 999 },
-  pillActive: { backgroundColor: BRAND_GREEN },
-  pillText: { color: BRAND_GREEN, fontWeight: '800' },
-  pillTextActive: { color: '#fff' },
-
-  card: {
-    backgroundColor: ACCENT_WHITE, borderRadius: 16, padding: 14, marginTop: 10,
-    elevation: 2, shadowColor: '#000', shadowOpacity: 0.06, shadowOffset: { width: 0, height: 3 }, shadowRadius: 6
+  mainContainer: {
+    flex: 1,
+    backgroundColor: BG_COLOR,
   },
-  cardTitle: { color: BRAND_GREEN, fontWeight: '900', fontSize: 16, marginBottom: 6 },
-  meta: { color: '#374151', marginTop: 2 },
+  headerArea: {
+    height: 220,
+    borderBottomLeftRadius: 32,
+    borderBottomRightRadius: 32,
+    elevation: 4,
+    shadowColor: '#166534',
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 6 },
+    zIndex: 10,
+  },
+  navBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    marginTop: 10,
+    marginBottom: 20,
+  },
+  backBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 16,
+  },
+  navTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: ACCENT_WHITE,
+    letterSpacing: 0.5,
+  },
 
-  badge: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 },
-  badgeText: { fontWeight: '700', textTransform: 'capitalize' },
+  statsContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-evenly',
+    paddingHorizontal: 16,
+  },
+  statCard: {
+    alignItems: 'center',
+    flex: 1,
+  },
+  statTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 6,
+    opacity: 0.9,
+  },
+  statIconCircle: {
+    marginRight: 6,
+    opacity: 0.8,
+  },
+  statLabel: {
+    color: '#BBF7D0', // light green text
+    fontSize: 12,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  statValue: {
+    color: ACCENT_WHITE,
+    fontSize: 20,
+    fontWeight: '800',
+  },
+  statSub: {
+    color: '#86EFAC',
+    fontSize: 10,
+    marginTop: 2,
+    fontWeight: '500',
+  },
+  vertDivider: {
+    width: 1,
+    height: 30,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    marginHorizontal: 10,
+  },
 
-  moreBtn: { alignSelf: 'center', marginTop: 12, backgroundColor: '#EEF2F7', borderRadius: 12, paddingHorizontal: 16, paddingVertical: 8 },
-  moreText: { color: BRAND_GREEN, fontWeight: '800' },
+  bodyContainer: {
+    flex: 1,
+    marginTop: -30, // Pull up to overlap
+    borderTopLeftRadius: 32,
+    borderTopRightRadius: 32,
+    backgroundColor: BG_COLOR,
+    overflow: 'hidden',
+  },
 
-  empty: { color: '#6B7280' },
+  tabContainer: {
+    alignItems: 'center',
+    marginTop: 20,
+    marginBottom: 16,
+  },
+  tabTrack: {
+    flexDirection: 'row',
+    backgroundColor: '#E2E8F0',
+    borderRadius: 25,
+    padding: 4,
+    width: '85%',
+  },
+  tabItem: {
+    flex: 1,
+    paddingVertical: 10,
+    alignItems: 'center',
+    borderRadius: 22,
+  },
+  tabItemActive: {
+    backgroundColor: ACCENT_WHITE,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+  },
+  tabLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: TEXT_SECONDARY,
+  },
+  tabLabelActive: {
+    color: BRAND_GREEN,
+    fontWeight: '700',
+  },
+
+  filtersContainer: {
+    height: 40,
+    marginBottom: 10,
+  },
+  filterChip: {
+    paddingHorizontal: 16,
+    paddingVertical: 6,
+    borderRadius: 20,
+    backgroundColor: ACCENT_WHITE,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    marginRight: 10,
+  },
+  filterChipActive: {
+    backgroundColor: BRAND_GREEN,
+    borderColor: BRAND_GREEN,
+  },
+  filterText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: TEXT_SECONDARY,
+  },
+  filterTextActive: {
+    color: ACCENT_WHITE,
+  },
+
+  listContent: {
+    paddingHorizontal: 20,
+    paddingBottom: 40,
+    paddingTop: 10,
+  },
+  listItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: ACCENT_WHITE,
+    padding: 16,
+    borderRadius: 16,
+    marginBottom: 12,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOpacity: 0.03,
+    shadowRadius: 5,
+    shadowOffset: { width: 0, height: 2 },
+  },
+  itemIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    backgroundColor: '#F0FDF4',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  itemTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: TEXT_PRIMARY,
+  },
+  itemMeta: {
+    fontSize: 12,
+    color: TEXT_SECONDARY,
+    marginTop: 2,
+  },
+  itemRef: {
+    fontSize: 11,
+    color: '#94A3B8',
+    marginTop: 2,
+  },
+  itemDate: {
+    fontSize: 11,
+    color: '#CBD5E1',
+    marginTop: 4,
+  },
+  amountText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: TEXT_PRIMARY,
+    marginBottom: 4,
+  },
+
+  pill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 10,
+  },
+  dot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    marginRight: 4,
+  },
+  pillText: {
+    fontSize: 11,
+    fontWeight: '700',
+    textTransform: 'capitalize',
+  },
+
+  loadMoreBtn: {
+    alignSelf: 'center',
+    marginVertical: 16,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    backgroundColor: ACCENT_WHITE,
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  loadMoreText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: TEXT_SECONDARY,
+  },
+  emptyText: {
+    textAlign: 'center',
+    marginTop: 40,
+    color: TEXT_SECONDARY,
+  },
 });

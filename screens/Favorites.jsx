@@ -32,9 +32,9 @@ export default function Favorites({ userId, onBack = () => {}, onOpenChat = () =
 
       // 2) Fetch basic user profiles for those targets
       const { data: users, error: uErr } = await supabase
-        .from('users')
-        .select('id, full_name, role, country, avatar_url')
-        .in('id', targetIds);
+        .from('kyc_documents')
+        .select('user_id as id, role, form_data')
+        .in('user_id', targetIds);
       if (uErr) throw uErr;
 
       // 3) Combine
@@ -44,10 +44,10 @@ export default function Favorites({ userId, onBack = () => {}, onOpenChat = () =
           id: f.id,
           userId: f.target_user_id,
           createdAt: f.created_at,
-          name: u?.full_name || 'Unnamed',
+          name: `${u?.form_data?.first_name || ''} ${u?.form_data?.last_name || ''}`.trim() || 'Unnamed',
           role: u?.role || '',
-          country: u?.country || '',
-          avatar: u?.avatar_url || null,
+          country: u?.form_data?.country || '',
+          avatar: u?.form_data?.profile_image || null,
         };
       });
 

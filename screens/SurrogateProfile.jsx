@@ -37,22 +37,21 @@ export default function SurrogateProfile({ navigation, route }) {
     const fetchAll = async () => {
       setLoading(true);
       try {
-        const [{ data: userRow, error: userErr }, { data: kycRow, error: kycErr }] = await Promise.all([
-          supabase.from('users')
-            .select('first_name, last_name, profile_image')
-            .eq('id', userId)
-            .maybeSingle(),
-          supabase.from('kyc_documents')
+        const { data: kycRow, error: kycErr } = await supabase.from('kyc_documents')
             .select('status, created_at, form_data')
             .eq('user_id', userId)
-            .maybeSingle(),
-        ]);
+            .maybeSingle();
   
-        if (userErr) throw userErr;
         if (kycErr) throw kycErr;
   
         if (mounted) {
-          setUser(userRow || null);
+          // Extract user data from form_data
+          const userData = kycRow?.form_data ? {
+            first_name: kycRow.form_data.first_name,
+            last_name: kycRow.form_data.last_name,
+            profile_image: kycRow.form_data.profile_image
+          } : null;
+          setUser(userData || null);
           setKyc(kycRow || null);
         }
       } catch (err) {

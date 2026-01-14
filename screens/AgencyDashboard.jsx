@@ -1,5 +1,5 @@
 // screens/AgencyDashboard.jsx
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -9,18 +9,20 @@ import {
   ActivityIndicator,
   TextInput,
   Modal,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../lib/supabase';
-import AlertModal from '../components/AlertModal';
+import { LinearGradient } from 'expo-linear-gradient';
 
 const BRAND_GREEN = '#16A34A';
-const ACCENT_WHITE = '#FFFFFF';
+const SECONDARY_GREEN = '#22C55E';
 const GRAY = '#6B7280';
 const LIGHT_BG = '#F8FAF9';
+const DARK = '#111827';
 
-export default function AgencyDashboard({ agencyId, onBack = () => {} }) {
+export default function AgencyDashboard({ agencyId, onBack = () => { } }) {
   const [loading, setLoading] = useState(true);
   const [roster, setRoster] = useState([]);
   const [subscription, setSubscription] = useState(null);
@@ -30,40 +32,14 @@ export default function AgencyDashboard({ agencyId, onBack = () => {} }) {
   const [newRole, setNewRole] = useState('SURROGATE');
   const [newEmail, setNewEmail] = useState('');
 
-  // Alert state
-  const [alertVisible, setAlertVisible] = useState(false);
-  const [alertTitle, setAlertTitle] = useState('');
-  const [alertMessage, setAlertMessage] = useState('');
-  const [alertType, setAlertType] = useState('info'); // 'info' | 'success' | 'error'
-  const [alertOnConfirm, setAlertOnConfirm] = useState(null);
-
-  const showAlert = (title, message, type = 'info', onConfirm = null) => {
-    setAlertTitle(title);
-    setAlertMessage(message);
-    setAlertType(type);
-    setAlertOnConfirm(() => onConfirm);
-    setAlertVisible(true);
-  };
-
-  const handleAlertConfirm = () => {
-    if (typeof alertOnConfirm === 'function') {
-      alertOnConfirm();
-    }
-    setAlertVisible(false);
-  };
-
-  const handleAlertClose = () => {
-    setAlertVisible(false);
-  };
-
   const loadData = async () => {
     try {
       setLoading(true);
 
       // Roster
       const { data: rosterData, error: rosterErr } = await supabase
-        .from('users')
-        .select('id, role, username, email, status')
+        .from('kyc_documents')
+        .select('user_id as id, role, form_data->>username as username, form_data->>email as email, status')
         .eq('agency_id', agencyId)
         .in('role', ['SURROGATE', 'DONOR']);
       if (rosterErr) throw rosterErr;
@@ -89,7 +65,6 @@ export default function AgencyDashboard({ agencyId, onBack = () => {} }) {
       setReferral(walletData || { referral_balance: 0 });
     } catch (e) {
       console.error('Agency dashboard error', e);
-      showAlert('Could not load data', 'Something went wrong. Please check your internet and try again.', 'error');
     } finally {
       setLoading(false);
     }
@@ -99,85 +74,55 @@ export default function AgencyDashboard({ agencyId, onBack = () => {} }) {
     loadData();
   }, []);
 
+  const filteredRoster = useMemo(() => {
+    if (!search) return roster;
+    const lower = search.toLowerCase();
+    return roster.filter(r =>
+      (r.username || '').toLowerCase().includes(lower) ||
+      (r.email || '').toLowerCase().includes(lower) ||
+      (r.role || '').toLowerCase().includes(lower)
+    );
+  }, [roster, search]);
+
   const toggleMemberStatus = async (item) => {
     try {
       const newStatus = item.status === 'active' ? 'suspended' : 'active';
       const { error } = await supabase
-        .from('users')
+        .from('kyc_documents')
         .update({ status: newStatus })
-        .eq('id', item.id);
+        .eq('user_id', item.id);
       if (error) throw error;
-
       loadData();
-      showAlert(
-        newStatus === 'active' ? 'Member Activated' : 'Member Suspended',
-        newStatus === 'active'
-          ? `${item.username || item.email} can now access their account again.`
-          : `${item.username || item.email} has been suspended and cannot log in.`,
-        'success'
-      );
     } catch (e) {
-      console.error('Toggle member status error:', e);
-      showAlert('Action failed', 'We couldn\'t update this member. Please try again.', 'error');
-    }
-  };
-
-  const addMember = async () => {
-    if (!newEmail) {
-      showAlert('Missing Information', 'Please type the new member\'s email.', 'error');
-      return;
-    }
-    try {
-      const { error } = await supabase.from('users').insert([
-        {
-          email: newEmail,
-          role: newRole,
-          agency_id: agencyId,
-          status: 'active',
-        },
-      ]);
-      if (error) throw error;
-
-      setShowAddModal(false);
-      setNewEmail('');
-      loadData();
-      showAlert('Member Added', 'The new member has been successfully added to your agency.', 'success');
-    } catch (e) {
-      console.error('Add member error:', e);
-      showAlert(
-        'Could not add member',
-        'This email might already be registered. Try using a different email.',
-        'error'
-      );
+      console.error('Toggle status error', e);
     }
   };
 
   const renderRosterItem = ({ item }) => (
     <View style={styles.rosterCard}>
-      <Ionicons
-        name={item.role === 'SURROGATE' ? 'female' : 'male'}
-        size={16}
-        color={BRAND_GREEN}
-        style={{ marginRight: 6 }}
-      />
+      <View style={[styles.roleIcon, { backgroundColor: item.role === 'SURROGATE' ? '#EEF2FF' : '#FFF7ED' }]}>
+        <Ionicons
+          name={item.role === 'SURROGATE' ? 'woman' : 'man'}
+          size={20}
+          color={item.role === 'SURROGATE' ? '#4F46E5' : '#EA580C'}
+        />
+      </View>
       <View style={{ flex: 1 }}>
         <Text style={styles.rosterName}>{item.username || item.email || 'Unnamed'}</Text>
-        <Text style={styles.rosterMeta}>
-          {item.role} • {item.email}
-        </Text>
-        {item.status === 'suspended' && (
-          <View style={styles.suspendedBadge}>
-            <Ionicons name="alert-circle" size={12} color="#B91C1C" style={{ marginRight: 4 }} />
-            <Text style={styles.suspendedText}>Suspended</Text>
-          </View>
-        )}
+        <Text style={styles.rosterMeta}>{item.role} • {item.email}</Text>
+        <View style={styles.statusRow}>
+          <View style={[styles.statusDot, { backgroundColor: item.status === 'active' ? BRAND_GREEN : '#EF4444' }]} />
+          <Text style={[styles.statusText, { color: item.status === 'active' ? BRAND_GREEN : '#EF4444' }]}>
+            {item.status === 'active' ? 'Active' : 'Suspended'}
+          </Text>
+        </View>
       </View>
 
       <TouchableOpacity
-        style={item.status === 'active' ? styles.suspendBtn : styles.reactivateBtn}
+        style={[styles.actionBtn, item.status === 'active' ? styles.suspendBtn : styles.activateBtn]}
         onPress={() => toggleMemberStatus(item)}
       >
-        <Text style={item.status === 'active' ? styles.suspendText : styles.reactivateText}>
+        <Text style={[styles.actionBtnText, item.status === 'active' ? styles.suspendBtnText : styles.activateBtnText]}>
           {item.status === 'active' ? 'Suspend' : 'Activate'}
         </Text>
       </TouchableOpacity>
@@ -185,270 +130,191 @@ export default function AgencyDashboard({ agencyId, onBack = () => {} }) {
   );
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
-      <View style={styles.container}>
-        {/* Topbar */}
-        <View style={styles.topbar}>
-          <TouchableOpacity style={styles.backBtn} onPress={onBack}>
-            <Ionicons name="arrow-back" size={18} color="#fff" />
-            <Text style={styles.backText}>Back</Text>
+    <SafeAreaView style={styles.safe} edges={['bottom']}>
+      <LinearGradient
+        colors={[BRAND_GREEN, SECONDARY_GREEN]}
+        style={styles.header}
+      >
+        <View style={styles.headerTop}>
+          <TouchableOpacity onPress={onBack} style={styles.backCircle}>
+            <Ionicons name="arrow-back" size={20} color={BRAND_GREEN} />
           </TouchableOpacity>
-          <Text style={styles.header}>Agency Dashboard</Text>
+          <Text style={styles.headerTitle}>Agency Portal</Text>
+          <View style={{ width: 40 }} />
+        </View>
+
+        <View style={styles.statsRow}>
+          <View style={styles.statItem}>
+            <Text style={styles.statVal}>{roster.length}</Text>
+            <Text style={styles.statLab}>Members</Text>
+          </View>
+          <View style={styles.statDivider} />
+          <View style={styles.statItem}>
+            <Text style={styles.statVal}>{subscription?.plan || 'Free'}</Text>
+            <Text style={styles.statLab}>Current Plan</Text>
+          </View>
+          <View style={styles.statDivider} />
+          <View style={styles.statItem}>
+            <Text style={styles.statVal}>₦{referral?.referral_balance?.toLocaleString() || 0}</Text>
+            <Text style={styles.statLab}>Earnings</Text>
+          </View>
+        </View>
+      </LinearGradient>
+
+      <View style={styles.content}>
+        <View style={styles.listHeader}>
+          <Text style={styles.sectionTitle}>Manage Roster</Text>
+          <TouchableOpacity style={styles.addBtn} onPress={() => setShowAddModal(true)}>
+            <Ionicons name="person-add" size={16} color="#fff" />
+            <Text style={styles.addBtnText}>Add</Text>
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.searchBox}>
+          <Ionicons name="search" size={20} color={GRAY} style={{ marginRight: 10 }} />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search surrogates or donors..."
+            value={search}
+            onChangeText={setSearch}
+            placeholderTextColor={GRAY}
+          />
         </View>
 
         {loading ? (
-          <ActivityIndicator size="large" color={BRAND_GREEN} style={{ marginTop: 30 }} />
+          <ActivityIndicator size="large" color={BRAND_GREEN} style={{ marginTop: 50 }} />
         ) : (
           <FlatList
-            ListHeaderComponent={
-              <View>
-                {/* Overview cards (3 in a row) */}
-                <View style={styles.overviewRow}>
-                  <View style={styles.overviewCard}>
-                    <Text style={styles.overviewLabel}>Plan</Text>
-                    <Text style={styles.overviewValue}>
-                      {subscription?.plan || 'None'}
-                    </Text>
-                  </View>
-                  <View style={styles.overviewCard}>
-                    <Text style={styles.overviewLabel}>Status</Text>
-                    <Text style={styles.overviewValue}>
-                      {subscription?.status || 'N/A'}
-                    </Text>
-                  </View>
-                  <View style={styles.overviewCard}>
-                    <Text style={styles.overviewLabel}>Rewards</Text>
-                    <Text style={styles.overviewValue}>
-                      ₦{referral?.referral_balance?.toLocaleString() || 0}
-                    </Text>
-                  </View>
-                </View>
-
-                {/* Search */}
-                <Text style={styles.sectionTitle}>Members</Text>
-                <TextInput
-                  style={styles.search}
-                  placeholder="Search surrogates or donors..."
-                  value={search}
-                  onChangeText={setSearch}
-                  placeholderTextColor={GRAY}
-                />
-
-                {/* Add Member */}
-                <View style={styles.actionRow}>
-                  <TouchableOpacity
-                    style={styles.addBtn}
-                    onPress={() => setShowAddModal(true)}
-                  >
-                    <Ionicons name="add-circle" size={16} color={ACCENT_WHITE} />
-                    <Text style={styles.addBtnText}>Add Member</Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-            }
             data={filteredRoster}
             keyExtractor={(item) => item.id}
             renderItem={renderRosterItem}
+            contentContainerStyle={{ paddingBottom: 100 }}
             ListEmptyComponent={
-              <Text style={styles.empty}>No surrogates or donors yet.</Text>
+              <View style={styles.emptyBox}>
+                <Ionicons name="people-outline" size={60} color="#E5E7EB" />
+                <Text style={styles.emptyText}>No members found</Text>
+              </View>
             }
-            contentContainerStyle={{ paddingBottom: 40 }}
           />
         )}
+      </View>
 
-        {/* Add Member Modal */}
-        <Modal
-          visible={showAddModal}
-          animationType="slide"
-          transparent
-          onRequestClose={() => setShowAddModal(false)}
-        >
-          <View className="modalOverlay" style={styles.modalOverlay}>
-            <View style={styles.modalBox}>
-              <Text style={styles.modalTitle}>Add New Member</Text>
+      {/* Add Member Modal (Simplified placeholder implementation) */}
+      <Modal visible={showAddModal} transparent animationType="fade">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Add New Member</Text>
+            <Text style={styles.modalHint}>Direct enrollment is available for verified agencies.</Text>
 
-              <TextInput
-                style={styles.input}
-                placeholder="Enter member email"
-                value={newEmail}
-                onChangeText={setNewEmail}
-              />
+            <TextInput
+              style={styles.modalInput}
+              placeholder="Full Name"
+              placeholderTextColor={GRAY}
+            />
+            <TextInput
+              style={styles.modalInput}
+              placeholder="Email Address"
+              placeholderTextColor={GRAY}
+              keyboardType="email-address"
+            />
 
-              {/* Role selector */}
-              <View style={styles.roleSwitch}>
-                <TouchableOpacity onPress={() => setNewRole('SURROGATE')}>
-                  <Text
-                    style={[styles.roleOption, newRole === 'SURROGATE' && styles.roleActive]}
-                  >
-                    Surrogate
-                  </Text>
-                </TouchableOpacity>
-                <TouchableOpacity onPress={() => setNewRole('DONOR')}>
-                  <Text
-                    style={[styles.roleOption, newRole === 'DONOR' && styles.roleActive]}
-                  >
-                    Donor
-                  </Text>
-                </TouchableOpacity>
-              </View>
-
-              <View style={styles.modalActions}>
-                <TouchableOpacity
-                  style={styles.cancelBtn}
-                  onPress={() => setShowAddModal(false)}
-                >
-                  <Text style={styles.cancelText}>Cancel</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.saveBtn}
-                  onPress={addMember}
-                  disabled={loading}
-                >
-                  {loading ? (
-                    <ActivityIndicator color="#fff" />
-                  ) : (
-                    <Text style={styles.saveText}>Save</Text>
-                  )}
-                </TouchableOpacity>
-              </View>
+            <View style={styles.modalActions}>
+              <TouchableOpacity style={styles.modalCancel} onPress={() => setShowAddModal(false)}>
+                <Text style={styles.modalCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.modalSubmit} onPress={() => setShowAddModal(false)}>
+                <Text style={styles.modalSubmitText}>Save Member</Text>
+              </TouchableOpacity>
             </View>
           </View>
-        </Modal>
-
-        {/* SweetAlert-style popup */}
-        <AwesomeAlert
-          show={alertVisible}
-          title={alertTitle}
-          message={alertMessage}
-          showConfirmButton={true}
-          confirmText="OK"
-          confirmButtonColor={BRAND_GREEN}
-          onConfirmPressed={hideAlert}
-        />
-      </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: LIGHT_BG },
-  container: { flexGrow: 1, padding: 16 },
+  header: {
+    paddingTop: 40,
+    paddingHorizontal: 20,
+    paddingBottom: 30,
+    borderBottomLeftRadius: 30,
+    borderBottomRightRadius: 30,
+  },
+  headerTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 25 },
+  headerTitle: { fontSize: 20, fontWeight: '900', color: '#fff' },
+  backCircle: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#fff', justifyContent: 'center', alignItems: 'center' },
 
-  topbar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 16,
-  },
-  header: { fontSize: 20, fontWeight: '800', color: BRAND_GREEN },
-  backBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: BRAND_GREEN,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 8,
-  },
-  backText: { color: '#fff', fontWeight: '700', marginLeft: 6 },
+  statsRow: { flexDirection: 'row', justifyContent: 'space-around', alignItems: 'center' },
+  statItem: { alignItems: 'center' },
+  statVal: { color: '#fff', fontSize: 18, fontWeight: '900' },
+  statLab: { color: 'rgba(255,255,255,0.8)', fontSize: 11, fontWeight: '700', marginTop: 3, textTransform: 'uppercase' },
+  statDivider: { width: 1, height: 25, backgroundColor: 'rgba(255,255,255,0.3)' },
 
-  overviewRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 12,
-  },
-  overviewCard: {
-    flex: 1,
-    marginHorizontal: 4,
-    backgroundColor: ACCENT_WHITE,
-    borderRadius: 10,
-    padding: 10,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOpacity: 0.05,
-    shadowOffset: { width: 0, height: 2 },
-    shadowRadius: 4,
-  },
-  overviewLabel: { fontSize: 12, color: GRAY, fontWeight: '600' },
-  overviewValue: { fontSize: 14, fontWeight: '800', color: BRAND_GREEN },
-
-  sectionTitle: {
-    fontWeight: '800',
-    fontSize: 16,
-    color: BRAND_GREEN,
-    marginTop: 8,
-    marginBottom: 8,
-  },
-  search: {
-    backgroundColor: '#fff',
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#d1d5db',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    marginBottom: 12,
-  },
-  actionRow: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    marginBottom: 10,
-  },
+  content: { flex: 1, padding: 20 },
+  listHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15 },
+  sectionTitle: { fontSize: 18, fontWeight: '900', color: DARK },
   addBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
     backgroundColor: BRAND_GREEN,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 8,
-  },
-  addBtnText: { color: ACCENT_WHITE, fontWeight: '700', marginLeft: 6 },
-
-  rosterCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#fff',
-    borderRadius: 10,
-    padding: 10,
-    marginBottom: 10,
-    shadowColor: '#000',
-    shadowOpacity: 0.05,
-    shadowOffset: { width: 0, height: 2 },
-    shadowRadius: 4,
+    paddingHorizontal: 15,
+    paddingVertical: 8,
+    borderRadius: 12,
+    gap: 6,
   },
-  rosterName: { fontWeight: '700', color: '#111827', fontSize: 14 },
-  rosterMeta: { fontSize: 12, color: GRAY },
-  suspendedBadge: {
+  addBtnText: { color: '#fff', fontWeight: '800', fontSize: 13 },
+
+  searchBox: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FEE2E2',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 6,
-    marginTop: 4,
-  },
-  suspendedText: { color: '#B91C1C', fontWeight: '700', fontSize: 11 },
-
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  modalBox: {
-    width: '90%',
     backgroundColor: '#fff',
     borderRadius: 12,
-    padding: 16,
-  },
-  modalTitle: { fontWeight: '800', fontSize: 18, marginBottom: 12, color: BRAND_GREEN },
-  input: {
+    paddingHorizontal: 15,
+    marginBottom: 20,
     borderWidth: 1,
-    borderColor: '#d1d5db',
-    borderRadius: 8,
-    padding: 8,
-    marginBottom: 12,
+    borderColor: '#E5E7EB',
   },
-  roleSwitch: { flexDirection: 'row', justifyContent: 'space-around', marginBottom: 12 },
-  roleOption: { fontWeight: '600', color: GRAY, padding: 6 },
-  roleActive: { color: BRAND_GREEN, textDecorationLine: 'underline' },
-  modalActions: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 8 },
+  searchInput: { flex: 1, height: 45, fontSize: 15, color: DARK },
+
+  rosterCard: {
+    backgroundColor: '#fff',
+    borderRadius: 20,
+    padding: 15,
+    marginBottom: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOpacity: 0.04,
+    shadowRadius: 10,
+    elevation: 3,
+  },
+  roleIcon: { width: 45, height: 45, borderRadius: 15, justifyContent: 'center', alignItems: 'center', marginRight: 15 },
+  rosterName: { fontSize: 15, fontWeight: '800', color: DARK },
+  rosterMeta: { fontSize: 12, color: GRAY, marginTop: 2 },
+  statusRow: { flexDirection: 'row', alignItems: 'center', marginTop: 5, gap: 5 },
+  statusDot: { width: 6, height: 6, borderRadius: 3 },
+  statusText: { fontSize: 11, fontWeight: '700' },
+
+  actionBtn: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8 },
+  suspendBtn: { backgroundColor: '#FEF2F2' },
+  activateBtn: { backgroundColor: '#F0FDF4' },
+  actionBtnText: { fontSize: 12, fontWeight: '700' },
+  suspendBtnText: { color: '#EF4444' },
+  activateBtnText: { color: BRAND_GREEN },
+
+  emptyBox: { alignItems: 'center', marginTop: 50 },
+  emptyText: { color: GRAY, fontSize: 14, fontWeight: '600', marginTop: 10 },
+
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', padding: 20 },
+  modalContent: { backgroundColor: '#fff', borderRadius: 25, padding: 25 },
+  modalTitle: { fontSize: 20, fontWeight: '900', color: DARK, marginBottom: 10 },
+  modalHint: { color: GRAY, fontSize: 14, marginBottom: 20 },
+  modalInput: { backgroundColor: '#F9FAFB', borderRadius: 12, padding: 15, marginBottom: 15, fontSize: 15, color: DARK, borderWidth: 1, borderColor: '#E5E7EB' },
+  modalActions: { flexDirection: 'row', gap: 10, marginTop: 10 },
+  modalCancel: { flex: 1, paddingVertical: 14, alignItems: 'center' },
+  modalCancelText: { color: GRAY, fontWeight: '800' },
+  modalSubmit: { flex: 2, backgroundColor: BRAND_GREEN, paddingVertical: 14, borderRadius: 15, alignItems: 'center' },
+  modalSubmitText: { color: '#fff', fontWeight: '900' },
 });

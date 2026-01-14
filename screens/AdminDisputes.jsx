@@ -8,16 +8,23 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   TextInput,
+  KeyboardAvoidingView,
+  Platform,
+  Alert
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { supabase } from '../lib/supabase';
-import AlertModal from '../components/AlertModal';
 
 const BRAND_GREEN = '#16A34A';
+const BRAND_DARK = '#14532D';
 const ACCENT_WHITE = '#FFFFFF';
+const BG_COLOR = '#F1F5F9';
+const TEXT_PRIMARY = '#1E293B';
+const TEXT_SECONDARY = '#64748B';
 
-export default function AdminDisputes({ onBack = () => {} }) {
+export default function AdminDisputes({ onBack = () => { } }) {
   const [disputes, setDisputes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [respondingId, setRespondingId] = useState(null);
@@ -61,11 +68,28 @@ export default function AdminDisputes({ onBack = () => {} }) {
 
       setRespondingId(null);
       setResponseText('');
-      Alert.alert('Resolved', 'Dispute marked as resolved.');
+      Alert.alert('Success', 'Dispute marked as resolved.');
       loadDisputes();
     } catch (e) {
       Alert.alert('Error', e?.message || String(e));
     }
+  };
+
+  const StatusBadge = ({ status }) => {
+    const isResolved = status === 'resolved';
+    return (
+      <View style={[styles.badge, isResolved ? styles.badgeResolved : styles.badgeOpen]}>
+        <Ionicons
+          name={isResolved ? 'checkmark-circle' : 'alert-circle'}
+          size={14}
+          color={isResolved ? '#065F46' : '#9A3412'}
+          style={{ marginRight: 4 }}
+        />
+        <Text style={[styles.badgeText, isResolved ? styles.textResolved : styles.textOpen]}>
+          {status}
+        </Text>
+      </View>
+    );
   };
 
   const renderItem = ({ item }) => {
@@ -73,45 +97,63 @@ export default function AdminDisputes({ onBack = () => {} }) {
     const isResponding = respondingId === item.id;
 
     return (
-      <View style={[styles.card, item.status === 'resolved' && styles.resolvedCard]}>
-        <Text style={styles.reason}>Reason: {item.reason}</Text>
-        <Text style={styles.meta}>Opened by: {item.user_id}</Text>
-        {item.profile_id && <Text style={styles.meta}>Profile disputed: {item.profile_id}</Text>}
-        <Text style={styles.meta}>Status: {item.status}</Text>
-        <Text style={styles.meta}>
-          Created: {new Date(item.created_at).toLocaleString()}
-        </Text>
+      <View style={styles.card}>
+        <View style={styles.cardHeader}>
+          <View style={styles.headerLeft}>
+            <View style={styles.avatarBox}>
+              <Ionicons name="person" size={16} color={ACCENT_WHITE} />
+            </View>
+            <View>
+              <Text style={styles.userId}>User: {item.user_id?.slice(0, 8)}...</Text>
+              <Text style={styles.date}>{new Date(item.created_at).toLocaleDateString()}</Text>
+            </View>
+          </View>
+          <StatusBadge status={item.status} />
+        </View>
+
+        <View style={styles.contentBox}>
+          <Text style={styles.label}>Reason for Dispute:</Text>
+          <Text style={styles.reasonText}>{item.reason}</Text>
+          {item.profile_id && (
+            <Text style={styles.metaText}>Target Profile ID: {item.profile_id}</Text>
+          )}
+        </View>
 
         {item.response && (
-          <Text style={styles.responseText}>Admin response: {item.response}</Text>
+          <View style={styles.adminResponseBox}>
+            <View style={styles.responseHeader}>
+              <Ionicons name="shield-checkmark" size={16} color={BRAND_GREEN} />
+              <Text style={styles.responseTitle}>Admin Resolution</Text>
+            </View>
+            <Text style={styles.responseText}>{item.response}</Text>
+            {item.resolved_at && (
+              <Text style={styles.resolvedDate}>Resolved on {new Date(item.resolved_at).toLocaleString()}</Text>
+            )}
+          </View>
         )}
 
         {isOpen && !isResponding && (
           <TouchableOpacity
-            style={styles.respondBtn}
+            style={styles.actionBtn}
             onPress={() => setRespondingId(item.id)}
           >
-            <Ionicons name="chatbox-ellipses" size={16} color={ACCENT_WHITE} />
-            <Text style={styles.respondText}>Respond & Resolve</Text>
+            <Ionicons name="chatbubble-ellipses-outline" size={18} color={BRAND_GREEN} />
+            <Text style={styles.actionBtnText}>Respond & Resolve</Text>
           </TouchableOpacity>
         )}
 
         {isResponding && (
-          <View style={styles.responseBox}>
+          <View style={styles.respondContainer}>
+            <Text style={styles.respondLabel}>Enter Resolution:</Text>
             <TextInput
               value={responseText}
               onChangeText={setResponseText}
-              placeholder="Enter admin response..."
+              placeholder="Explain the resolution..."
+              placeholderTextColor={TEXT_SECONDARY}
               style={styles.input}
               multiline
             />
-            <View style={{ flexDirection: 'row', gap: 8 }}>
-              <TouchableOpacity
-                style={styles.saveBtn}
-                onPress={() => markResolved(item.id)}
-              >
-                <Text style={styles.saveText}>Save & Resolve</Text>
-              </TouchableOpacity>
+            <View style={styles.respondActions}>
               <TouchableOpacity
                 style={styles.cancelBtn}
                 onPress={() => {
@@ -119,7 +161,13 @@ export default function AdminDisputes({ onBack = () => {} }) {
                   setResponseText('');
                 }}
               >
-                <Text style={styles.cancelText}>Cancel</Text>
+                <Text style={styles.cancelBtnText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.resolveBtn}
+                onPress={() => markResolved(item.id)}
+              >
+                <Text style={styles.resolveBtnText}>Resolve Dispute</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -129,116 +177,296 @@ export default function AdminDisputes({ onBack = () => {} }) {
   };
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
-      <View style={styles.container}>
-        {/* Top bar */}
-        <View style={styles.topbar}>
-          <Text style={styles.header}>Disputes Console</Text>
-          <TouchableOpacity style={styles.backBtn} onPress={onBack}>
-            <Ionicons name="arrow-back" size={20} color="#fff" />
-            <Text style={styles.backText}>Back</Text>
-          </TouchableOpacity>
-        </View>
-
-        {loading ? (
-          <ActivityIndicator
-            size="large"
-            color={BRAND_GREEN}
-            style={{ marginTop: 20 }}
-          />
-        ) : disputes.length === 0 ? (
-          <Text style={styles.empty}>No disputes filed yet.</Text>
-        ) : (
-          <FlatList
-            data={disputes}
-            keyExtractor={(item) => item.id}
-            renderItem={renderItem}
-            contentContainerStyle={{ paddingBottom: 20 }}
-          />
-        )}
+    <View style={styles.mainContainer}>
+      {/* Header */}
+      <View style={styles.headerContainer}>
+        <LinearGradient
+          colors={[BRAND_GREEN, BRAND_DARK]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.headerGradient}
+        >
+          <SafeAreaView edges={['top', 'left', 'right']} style={styles.headerContent}>
+            <View style={styles.headerRow}>
+              <TouchableOpacity onPress={onBack} style={styles.backButton}>
+                <Ionicons name="arrow-back" size={24} color={ACCENT_WHITE} />
+              </TouchableOpacity>
+              <View>
+                <Text style={styles.headerTitle}>Disputes Console</Text>
+                <Text style={styles.headerSubtitle}>Manage & resolve user issues</Text>
+              </View>
+            </View>
+          </SafeAreaView>
+        </LinearGradient>
       </View>
-    </SafeAreaView>
+
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        style={{ flex: 1 }}
+      >
+        <View style={styles.contentContainer}>
+          {loading ? (
+            <ActivityIndicator size="large" color={BRAND_GREEN} style={{ marginTop: 20 }} />
+          ) : (
+            <FlatList
+              data={disputes}
+              keyExtractor={(item) => item.id}
+              renderItem={renderItem}
+              contentContainerStyle={styles.listContent}
+              ListEmptyComponent={
+                <View style={styles.emptyState}>
+                  <Ionicons name="checkmark-done-circle-outline" size={64} color="#CBD5E1" />
+                  <Text style={styles.emptyText}>No disputes found.</Text>
+                </View>
+              }
+            />
+          )}
+        </View>
+      </KeyboardAvoidingView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#F8FAF9' },
-  container: { flex: 1, padding: 16 },
-  topbar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 12,
+  mainContainer: {
+    flex: 1,
+    backgroundColor: BG_COLOR,
   },
-  header: { fontSize: 22, fontWeight: '900', color: BRAND_GREEN },
-  backBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  headerContainer: {
     backgroundColor: BRAND_GREEN,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 12,
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
+    overflow: 'hidden',
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
   },
-  backText: { color: '#fff', fontWeight: '800', marginLeft: 6 },
+  headerGradient: {
+    paddingBottom: 24,
+  },
+  headerContent: {
+    paddingHorizontal: 20,
+    paddingTop: 10,
+  },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  backButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 16,
+  },
+  headerTitle: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: ACCENT_WHITE,
+  },
+  headerSubtitle: {
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.85)',
+    fontWeight: '500',
+  },
+  contentContainer: {
+    flex: 1,
+  },
+  listContent: {
+    padding: 20,
+    paddingBottom: 40,
+  },
 
+  // Card
   card: {
-    backgroundColor: '#fff',
-    borderRadius: 14,
-    padding: 12,
-    marginBottom: 12,
+    backgroundColor: ACCENT_WHITE,
+    borderRadius: 20,
+    padding: 16,
+    marginBottom: 16,
     elevation: 2,
     shadowColor: '#000',
-    shadowOpacity: 0.06,
-    shadowOffset: { width: 0, height: 3 },
-    shadowRadius: 6,
-  },
-  resolvedCard: { opacity: 0.7 },
-  reason: { fontWeight: '700', color: '#111827', marginBottom: 4 },
-  meta: { color: '#4B5563', fontSize: 13, marginTop: 2 },
-  responseText: {
-    marginTop: 8,
-    color: '#065F46',
-    fontWeight: '700',
-    backgroundColor: '#ECFDF5',
-    padding: 6,
-    borderRadius: 6,
-  },
-  respondBtn: {
-    marginTop: 10,
-    backgroundColor: BRAND_GREEN,
-    paddingVertical: 8,
-    borderRadius: 10,
-    alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: 6,
-  },
-  respondText: { color: ACCENT_WHITE, fontWeight: '800' },
-  responseBox: { marginTop: 10 },
-  input: {
+    shadowOpacity: 0.05,
+    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 4,
     borderWidth: 1,
-    borderColor: '#d1d5db',
-    borderRadius: 8,
-    padding: 8,
-    backgroundColor: '#fff',
-    minHeight: 60,
+    borderColor: '#E2E8F0',
+  },
+  cardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 12,
+  },
+  headerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  avatarBox: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#3B82F6',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 10,
+  },
+  userId: {
+    fontWeight: '700',
+    color: TEXT_PRIMARY,
+    fontSize: 14,
+  },
+  date: {
+    fontSize: 12,
+    color: TEXT_SECONDARY,
+  },
+
+  badge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 10,
+  },
+  badgeOpen: { backgroundColor: '#FFF7ED' },
+  badgeResolved: { backgroundColor: '#ECFDF5' },
+  badgeText: { fontSize: 11, fontWeight: '700', textTransform: 'capitalize' },
+  textOpen: { color: '#9A3412' },
+  textResolved: { color: '#065F46' },
+
+  contentBox: {
+    backgroundColor: '#F8FAFC',
+    padding: 12,
+    borderRadius: 12,
+    marginBottom: 12,
+  },
+  label: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: TEXT_SECONDARY,
+    marginBottom: 4,
+    textTransform: 'uppercase',
+  },
+  reasonText: {
+    fontSize: 14,
+    color: TEXT_PRIMARY,
+    lineHeight: 20,
+  },
+  metaText: {
+    fontSize: 12,
+    color: TEXT_SECONDARY,
+    marginTop: 8,
+    fontStyle: 'italic',
+  },
+
+  adminResponseBox: {
+    backgroundColor: '#F0FDF4',
+    padding: 12,
+    borderRadius: 12,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#DCFCE7',
+  },
+  responseHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 6,
+  },
+  responseTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: BRAND_GREEN,
+  },
+  responseText: {
+    fontSize: 14,
+    color: '#14532D',
+  },
+  resolvedDate: {
+    fontSize: 11,
+    color: '#15803d',
+    marginTop: 6,
+    textAlign: 'right',
+  },
+
+  actionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 10,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: BRAND_GREEN,
+    marginTop: 4,
+  },
+  actionBtnText: {
+    color: BRAND_GREEN,
+    fontWeight: '700',
+    marginLeft: 8,
+  },
+
+  respondContainer: {
+    marginTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#E2E8F0',
+    paddingTop: 12,
+  },
+  respondLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: TEXT_SECONDARY,
     marginBottom: 8,
   },
-  saveBtn: {
-    backgroundColor: BRAND_GREEN,
-    flex: 1,
-    alignItems: 'center',
-    paddingVertical: 10,
-    borderRadius: 8,
+  input: {
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    borderRadius: 12,
+    padding: 12,
+    minHeight: 80,
+    textAlignVertical: 'top',
+    fontSize: 14,
+    color: TEXT_PRIMARY,
+    marginBottom: 12,
   },
-  saveText: { color: '#fff', fontWeight: '800' },
+  respondActions: {
+    flexDirection: 'row',
+    gap: 12,
+  },
   cancelBtn: {
-    backgroundColor: '#e5e7eb',
     flex: 1,
-    alignItems: 'center',
     paddingVertical: 10,
-    borderRadius: 8,
+    borderRadius: 12,
+    backgroundColor: '#F1F5F9',
+    alignItems: 'center',
   },
-  cancelText: { fontWeight: '700', color: '#111827' },
-  empty: { textAlign: 'center', color: '#6B7280', marginTop: 20, fontSize: 16 },
+  resolveBtn: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: 12,
+    backgroundColor: BRAND_GREEN,
+    alignItems: 'center',
+  },
+  cancelBtnText: {
+    color: TEXT_SECONDARY,
+    fontWeight: '700',
+  },
+  resolveBtnText: {
+    color: ACCENT_WHITE,
+    fontWeight: '700',
+  },
+
+  emptyState: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 60,
+  },
+  emptyText: {
+    color: TEXT_SECONDARY,
+    marginTop: 16,
+    fontSize: 16,
+  },
 });

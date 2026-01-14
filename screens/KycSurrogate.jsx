@@ -42,10 +42,13 @@ function ThinProgress({ percent = 0 }) {
 }
 
 export default function KycSurrogate({
-  userId,
+  userId: userIdProp,
+  route,
+  navigation,
   onDone = () => { },
   onSkip = () => { },
 }) {
+  const userId = userIdProp ?? route?.params?.userId;
   const [step, setStep] = useState(0);
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);

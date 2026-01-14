@@ -9,6 +9,20 @@ const LIGHT_BG = '#F8FAF9';
 export default function DonorDashboard({ route, navigation }) {
   const { userId } = route.params || {};
 
+  // Set header options for logout button
+  React.useLayoutEffect(() => {
+    navigation.setOptions({
+      headerRight: () => (
+        <TouchableOpacity onPress={() => {
+          // Trigger logout by going to a custom action
+          navigation.getParent()?.goBack();
+        }} style={{ marginRight: 10 }}>
+          <Ionicons name="log-out-outline" size={24} color="#fff" />
+        </TouchableOpacity>
+      ),
+    });
+  }, [navigation]);
+
   return (
     <View style={styles.container}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
@@ -59,7 +73,7 @@ export default function DonorDashboard({ route, navigation }) {
 
           <TouchableOpacity
             style={styles.gridItem}
-            onPress={() => navigation.navigate("Profile")}
+            onPress={() => navigation.navigate("Profile", { userId })}
           >
             <View style={[styles.iconBox, { backgroundColor: '#F5F3FF' }]}>
               <Ionicons name="person-outline" size={24} color="#8B5CF6" />

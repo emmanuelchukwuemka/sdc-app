@@ -10,8 +10,8 @@ import {
   Image,
   Animated,
   Easing,
-  // KeyboardAvoidingView, // removed
   Platform,
+  Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -21,102 +21,55 @@ import { validateEmailField } from '../utils/validation';
 import { LinearGradient } from 'expo-linear-gradient';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 
+const { width, height } = Dimensions.get('window');
+
 const BRAND_GREEN = '#16A34A';
-const ACCENT_WHITE = '#FFFFFF';
+const SECONDARY_GREEN = '#22C55E';
+const LIGHT_BG = '#F8FAF9';
+const DARK = '#111827';
 const GRAY = '#6B7280';
 
 export default function Login({ role, onLogin, onBack, onGoRegister, onGoForgetPassword }) {
   // Animation state
-  const glow = useRef(new Animated.Value(0)).current;
-  const pulse = useRef(new Animated.Value(1)).current;
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(30)).current;
 
-  // Continuous glow animation
   useEffect(() => {
-    const glowAnimation = Animated.loop(
-      Animated.parallel([
-        Animated.sequence([
-          Animated.timing(glow, {
-            toValue: 1,
-            duration: 1000,
-            easing: Easing.inOut(Easing.ease),
-            useNativeDriver: false,
-          }),
-          Animated.timing(glow, {
-            toValue: 0,
-            duration: 1000,
-            easing: Easing.inOut(Easing.ease),
-            useNativeDriver: false,
-          }),
-        ]),
-        Animated.sequence([
-          Animated.timing(pulse, {
-            toValue: 1.05,
-            duration: 1000,
-            easing: Easing.inOut(Easing.ease),
-            useNativeDriver: false,
-          }),
-          Animated.timing(pulse, {
-            toValue: 1,
-            duration: 1000,
-            easing: Easing.inOut(Easing.ease),
-            useNativeDriver: false,
-          }),
-        ]),
-      ])
-    );
-
-    glowAnimation.start();
-
-    return () => {
-      glowAnimation.stop();
-    };
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 800,
+        useNativeDriver: true,
+      }),
+      Animated.timing(slideAnim, {
+        toValue: 0,
+        duration: 800,
+        easing: Easing.out(Easing.back(1.5)),
+        useNativeDriver: true,
+      }),
+    ]).start();
   }, []);
 
-  // Auto-simulate login on mount
-  // Auto-simulate login removed
-
-  const [identifier, setIdentifier] = useState(''); // can be email OR username
+  const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [identifierError, setIdentifierError] = useState('');
 
-  // Themed modal alert state
+  // Alert state
   const [alertVisible, setAlertVisible] = useState(false);
   const [alertTitle, setAlertTitle] = useState('');
   const [alertMessage, setAlertMessage] = useState('');
-  const [alertType, setAlertType] = useState('info'); // 'info' | 'success' | 'error'
-  const [alertOnConfirm, setAlertOnConfirm] = useState(null);
+  const [alertType, setAlertType] = useState('info');
 
-  const showAlert = (title, message, type = 'info', onConfirm = null) => {
+  const showAlert = (title, message, type = 'info') => {
     setAlertTitle(title);
     setAlertMessage(message);
     setAlertType(type);
-    setAlertOnConfirm(() => onConfirm);
     setAlertVisible(true);
   };
 
-  const handleAlertConfirm = () => {
-    if (typeof alertOnConfirm === 'function') {
-      alertOnConfirm();
-    }
-    setAlertVisible(false);
-  };
-
-  const handleAlertClose = () => {
-    setAlertVisible(false);
-  };
-
-  const handleIdentifierChange = (text) => {
-    setIdentifier(text);
-    // Clear error when user starts typing
-    if (identifierError) {
-      setIdentifierError('');
-    }
-  };
-
   const handleLogin = async () => {
-    // Validate email format if identifier contains '@'
     if (identifier.includes('@')) {
       const emailValidationError = validateEmailField(identifier);
       if (emailValidationError) {
@@ -133,89 +86,40 @@ export default function Login({ role, onLogin, onBack, onGoRegister, onGoForgetP
 
     try {
       setLoading(true);
-
       let emailToUse = identifier;
       if (!identifier.includes('@')) {
-        // Treat identifier as username → lookup email in users table
         const { data, error } = await supabase
-          .from('users')
-          .select('email')
-          .eq('username', identifier)
+          .from('kyc_documents')
+          .select('form_data->>email as email')
+          .eq('form_data->>username', identifier)
           .maybeSingle();
 
         if (error) throw error;
         if (!data) {
-          throw new Error('No user found with that username. If you just registered, please log in using your email to complete setup.');
+          throw new Error('No user found with that username.');
         }
         emailToUse = data.email;
       }
 
-      // Use Supabase Auth signInWithPassword with email + password
       const { data: loginData, error: loginErr } = await supabase.auth.signInWithPassword({
         email: emailToUse,
         password,
       });
 
-      if (loginErr) {
-        // Handle unconfirmed email case for clarity
-        const msg = loginErr.message || '';
-        if (msg.toLowerCase().includes('email not confirmed') || msg.toLowerCase().includes('email_confirm')) {
-          throw new Error('Your email is not confirmed yet. Please check your inbox for the confirmation link.');
-        }
-        throw loginErr;
-      }
-
+      if (loginErr) throw loginErr;
       const user = loginData.user;
-      if (!user) throw new Error('Login failed, no user returned.');
+      if (!user) throw new Error('Login failed.');
 
-      // Ensure profile exists (backfill for users created while confirmations were ON)
-      try {
-        const { data: profileRow, error: profileFetchErr } = await supabase
-          .from('users')
-          .select('id')
-          .eq('id', user.id)
-          .maybeSingle();
-        if (profileFetchErr) throw profileFetchErr;
-
-        if (!profileRow) {
-          const meta = user.user_metadata || {};
-          const payload = {
-            id: user.id,
-            first_name: meta.first_name || null,
-            middle_name: meta.middle_name || null,
-            last_name: meta.last_name || null,
-            email: user.email,
-            username: meta.username || null,
-            role: meta.role || role,
-            status: 'active',
-          };
-          const { error: upsertErr } = await supabase
-            .from('users')
-            .upsert(payload, { onConflict: 'id' });
-          if (upsertErr) throw upsertErr;
-        }
-      } catch (ensureErr) {
-        // Non-fatal: we still proceed to fetch role; errors will surface then if needed
-        console.log('ensureProfile warning:', ensureErr?.message || ensureErr);
-      }
-
-      // Fetch role from users table
       const { data: profile, error: profileErr } = await supabase
-        .from('users')
-        .select('id, role, status')
-        .eq('id', user.id)
+        .from('kyc_documents')
+        .select('role, status')
+        .eq('user_id', user.id)
         .maybeSingle();
 
       if (profileErr) throw profileErr;
-      if (!profile) throw new Error('User profile not found.');
+      if (!profile) throw new Error('Profile not found.');
+      if (profile.status === 'rejected') throw new Error('Your account has been rejected. Please contact support.');
 
-      // Check if user is active
-      if (profile.status !== 'active') {
-        throw new Error('Your account is not active. Please contact support.');
-      }
-
-      // Pass role + id to App.js
-      // Fixed → always use Supabase Auth user.id
       onLogin(profile.role, user.id);
     } catch (err) {
       showAlert('Login failed', err.message || String(err), 'error');
@@ -225,139 +129,98 @@ export default function Login({ role, onLogin, onBack, onGoRegister, onGoForgetP
   };
 
   return (
-    <View style={[styles.safe, { backgroundColor: '#16A34A' }]}>
-      <SafeAreaView style={styles.safeContent}>
+    <View style={styles.main}>
+      <LinearGradient
+        colors={[BRAND_GREEN, SECONDARY_GREEN]}
+        style={StyleSheet.absoluteFill}
+      />
+
+      <SafeAreaView style={styles.safe}>
         <KeyboardAwareScrollView
-          contentContainerStyle={styles.container}
+          contentContainerStyle={styles.scroll}
           showsVerticalScrollIndicator={false}
-          enableOnAndroid={true}
-          extraHeight={100}
           keyboardShouldPersistTaps="handled"
         >
-          {/* Header with Logo */}
-          <View style={styles.header}>
-            <View style={styles.logoContainer}>
-              <Animated.View
-                style={[
-                  styles.logo,
-                  {
-                    transform: [{ scale: pulse }],
-                    shadowOpacity: glow.interpolate({
-                      inputRange: [0, 1],
-                      outputRange: [0.3, 0.6]
-                    }),
-                    elevation: glow.interpolate({
-                      inputRange: [0, 1],
-                      outputRange: [6, 12]
-                    })
-                  }
-                ]}
-              >
-                <Image
-                  source={require('../assets/logo.png')}
-                  style={styles.logoImage}
-                  resizeMode="cover"
-                />
-                <Animated.View
-                  style={[
-                    styles.glow,
-                    {
-                      opacity: glow,
-                      transform: [{
-                        scale: glow.interpolate({
-                          inputRange: [0, 1],
-                          outputRange: [0.8, 1.2]
-                        })
-                      }]
-                    }
-                  ]}
-                />
-              </Animated.View>
+          <Animated.View style={[styles.header, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
+            <View style={styles.logoCircle}>
+              <Image source={require('../assets/logo.png')} style={styles.logo} resizeMode="cover" />
             </View>
-            <Text style={styles.welcomeText}>Welcome Back</Text>
-            <Text style={styles.roleText}>Login as {role}</Text>
-          </View>
+            <Text style={styles.title}>Welcome Back</Text>
+            <Text style={styles.subtitle}>Sign in as <Text style={styles.bold}>{role}</Text></Text>
+          </Animated.View>
 
-          {/* Login Form */}
-          <View style={styles.formContainer}>
-            <Text style={styles.formTitle}>Sign In</Text>
-
-            <View style={styles.inputContainer}>
-              <Ionicons name="person-outline" size={20} color={GRAY} style={styles.inputIcon} />
-              <TextInput
-                style={[styles.input, identifierError && styles.inputError]}
-                placeholder="Email or Username"
-                placeholderTextColor={GRAY}
-                autoCapitalize="none"
-                value={identifier}
-                onChangeText={handleIdentifierChange}
-              />
-            </View>
-            {identifierError ? (
-              <Text style={styles.errorText}>{identifierError}</Text>
-            ) : null}
-
-            <View style={styles.inputContainer}>
-              <Ionicons name="lock-closed-outline" size={20} color={GRAY} style={styles.inputIcon} />
-              <TextInput
-                style={styles.passwordInput}
-                placeholder="Password"
-                placeholderTextColor={GRAY}
-                secureTextEntry={!showPassword}
-                value={password}
-                onChangeText={setPassword}
-              />
-              <TouchableOpacity
-                onPress={() => setShowPassword(!showPassword)}
-                style={styles.eyeIcon}
-              >
-                <Ionicons
-                  name={showPassword ? 'eye-off-outline' : 'eye-outline'}
-                  size={20}
-                  color={GRAY}
+          <Animated.View style={[styles.card, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Email or Username</Text>
+              <View style={[styles.inputContainer, identifierError && styles.inputError]}>
+                <Ionicons name="person-outline" size={20} color={GRAY} />
+                <TextInput
+                  style={styles.input}
+                  placeholder="Enter your email or username"
+                  placeholderTextColor={GRAY}
+                  autoCapitalize="none"
+                  value={identifier}
+                  onChangeText={(t) => { setIdentifier(t); setIdentifierError(''); }}
                 />
+              </View>
+              {!!identifierError && <Text style={styles.error}>{identifierError}</Text>}
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Password</Text>
+              <View style={styles.inputContainer}>
+                <Ionicons name="lock-closed-outline" size={20} color={GRAY} />
+                <TextInput
+                  style={styles.input}
+                  placeholder="••••••••"
+                  placeholderTextColor={GRAY}
+                  secureTextEntry={!showPassword}
+                  value={password}
+                  onChangeText={setPassword}
+                />
+                <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
+                  <Ionicons name={showPassword ? 'eye-off-outline' : 'eye-outline'} size={20} color={GRAY} />
+                </TouchableOpacity>
+              </View>
+              <TouchableOpacity onPress={onGoForgetPassword} style={styles.forgotBtn}>
+                <Text style={styles.forgotText}>Forgot Password?</Text>
               </TouchableOpacity>
             </View>
 
             <TouchableOpacity
-              style={[styles.loginBtn, loading && styles.loginBtnDisabled]}
+              style={[styles.primaryBtn, loading && styles.disabledBtn]}
               onPress={handleLogin}
               disabled={loading}
             >
-              {loading ? (
-                <ActivityIndicator color="#fff" />
-              ) : (
-                <Text style={styles.loginText}>Sign In</Text>
-              )}
+              {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.primaryBtnText}>Sign In</Text>}
             </TouchableOpacity>
 
-            <TouchableOpacity onPress={onGoForgetPassword} style={styles.forgotPasswordContainer}>
-              <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
-            </TouchableOpacity>
+            <View style={styles.divider}>
+              <View style={styles.line} />
+              <Text style={styles.dividerText}>or</Text>
+              <View style={styles.line} />
+            </View>
 
-            <TouchableOpacity onPress={onGoRegister} style={styles.registerContainer}>
-              <Text style={styles.registerText}>
-                Don't have an account? <Text style={styles.registerLink}>Create Account</Text>
+            <TouchableOpacity style={styles.secondaryBtn} onPress={onGoRegister}>
+              <Text style={styles.secondaryBtnText}>
+                New here? <Text style={styles.linkText}>Create Account</Text>
               </Text>
             </TouchableOpacity>
-          </View>
+          </Animated.View>
 
-          {/* Footer */}
-          <TouchableOpacity onPress={onBack} style={styles.backButton}>
-            <Ionicons name="arrow-back" size={20} color={BRAND_GREEN} style={styles.backIcon} />
-            <Text style={styles.backText}>Back to Role Selection</Text>
+          <TouchableOpacity style={styles.backBtn} onPress={onBack}>
+            <Ionicons name="arrow-back" size={18} color="#fff" />
+            <Text style={styles.backBtnText}>Change Role</Text>
           </TouchableOpacity>
         </KeyboardAwareScrollView>
       </SafeAreaView>
 
-      {/* Reusable Themed Alert Modal */}
       <AlertModal
         visible={alertVisible}
         type={alertType}
         title={alertTitle}
         message={alertMessage}
-        onConfirm={handleAlertConfirm}
-        onRequestClose={handleAlertClose}
+        onConfirm={() => setAlertVisible(false)}
         brandColor={BRAND_GREEN}
       />
     </View>
@@ -365,199 +228,86 @@ export default function Login({ role, onLogin, onBack, onGoRegister, onGoForgetP
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#16A34A' },
-  safeContent: { flex: 1, justifyContent: 'center' },
-  container: {
-    flexGrow: 1,
-    padding: 24,
-    paddingTop: 40,
-    paddingBottom: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
+  main: { flex: 1 },
+  safe: { flex: 1 },
+  scroll: { padding: 30, flexGrow: 1, justifyContent: 'center' },
 
-  // Header Styles
-  header: {
-    alignItems: 'center',
-    marginBottom: 40,
-  },
-  logoContainer: {
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  logo: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    borderWidth: 3,
-    borderColor: '#FFFFFF',
-    overflow: 'hidden',
-    backgroundColor: '#FFFFFF',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 6,
-    elevation: 6,
-    marginBottom: 16,
-  },
-  logoImage: {
-    width: '100%',
-    height: '100%',
-    borderRadius: 60,
-  },
-  glow: {
-    position: 'absolute',
+  header: { alignItems: 'center', marginBottom: 40 },
+  logoCircle: {
     width: 100,
     height: 100,
     borderRadius: 50,
-    backgroundColor: 'rgba(255,255,255,0.4)',
-  },
-  welcomeText: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: '#FFFFFF',
-    marginBottom: 4,
-    textAlign: 'center',
-  },
-  roleText: {
-    fontSize: 16,
-    color: '#E5E7EB',
-    fontWeight: '500',
-  },
-
-  // Form Styles
-  formContainer: {
-    width: '100%',
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
-    borderRadius: 20,
-    padding: 24,
+    backgroundColor: '#fff',
+    padding: 3,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
-    marginBottom: 32,
-    backdropFilter: 'blur(10px)',
-    WebkitBackdropFilter: 'blur(10px)',
+    shadowOpacity: 0.2,
+    shadowRadius: 10,
+    elevation: 10,
+    marginBottom: 20,
+    overflow: 'hidden'
   },
-  formTitle: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: '#1F2937',
-    marginBottom: 24,
-    textAlign: 'center',
-  },
+  logo: { width: '100%', height: '100%', borderRadius: 50 },
+  title: { fontSize: 32, fontWeight: '900', color: '#fff' },
+  subtitle: { fontSize: 16, color: 'rgba(255,255,255,0.9)', marginTop: 5 },
+  bold: { fontWeight: '900', color: '#fff' },
 
-  // Input Styles
+  card: {
+    backgroundColor: '#fff',
+    borderRadius: 30,
+    padding: 30,
+    shadowColor: '#000',
+    shadowOpacity: 0.1,
+    shadowRadius: 20,
+    elevation: 5,
+  },
+  inputGroup: { marginBottom: 20 },
+  label: { fontSize: 13, fontWeight: '800', color: DARK, marginBottom: 8, marginLeft: 4 },
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#F9FAFB',
+    borderRadius: 16,
+    paddingHorizontal: 15,
+    height: 58,
     borderWidth: 1,
-    borderColor: BRAND_GREEN,
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    marginBottom: 20,
-    height: 56,
+    borderColor: '#E5E7EB',
   },
-  inputIcon: {
-    marginRight: 12,
-  },
-  input: {
-    flex: 1,
-    fontSize: 16,
-    color: '#1F2937',
-    paddingVertical: 0,
-  },
-  passwordInput: {
-    flex: 1,
-    fontSize: 16,
-    color: '#1F2937',
-    paddingVertical: 0,
-  },
-  eyeIcon: {
-    padding: 4,
-  },
+  inputError: { borderColor: '#EF4444' },
+  input: { flex: 1, height: '100%', marginLeft: 10, color: DARK, fontSize: 15 },
+  error: { color: '#EF4444', fontSize: 12, marginTop: 5, marginLeft: 5 },
 
-  // Error Styles
-  inputError: {
-    borderColor: '#EF4444',
-  },
-  errorText: {
-    color: '#EF4444',
-    fontSize: 14,
-    marginTop: 4,
-    marginBottom: 8,
-    marginLeft: 16,
-  },
+  forgotBtn: { alignSelf: 'flex-end', marginTop: 10 },
+  forgotText: { color: BRAND_GREEN, fontWeight: '700', fontSize: 13 },
 
-  // Button Styles
-  loginBtn: {
+  primaryBtn: {
     backgroundColor: BRAND_GREEN,
-    width: '100%',
-    height: 56,
-    borderRadius: 12,
-    alignItems: 'center',
+    height: 58,
+    borderRadius: 16,
     justifyContent: 'center',
-    marginBottom: 20,
+    alignItems: 'center',
+    marginTop: 10,
     shadowColor: BRAND_GREEN,
-    shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 6,
+    shadowRadius: 10,
+    elevation: 4,
   },
-  loginBtnDisabled: {
-    opacity: 0.6,
-  },
-  loginText: {
-    color: ACCENT_WHITE,
-    fontWeight: '700',
-    fontSize: 18,
-  },
+  disabledBtn: { opacity: 0.7 },
+  primaryBtnText: { color: '#fff', fontSize: 16, fontWeight: '900' },
 
-  // Register Link
-  registerContainer: {
-    alignItems: 'center',
-  },
-  registerText: {
-    color: GRAY,
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  registerLink: {
-    color: BRAND_GREEN,
-    fontWeight: '700',
-  },
+  divider: { flexDirection: 'row', alignItems: 'center', marginVertical: 25, opacity: 0.3 },
+  line: { flex: 1, height: 1, backgroundColor: GRAY },
+  dividerText: { marginHorizontal: 15, color: GRAY, fontSize: 12, fontWeight: '700' },
 
-  // Forgot Password Link
-  forgotPasswordContainer: {
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  forgotPasswordText: {
-    color: BRAND_GREEN,
-    fontSize: 14,
-    fontWeight: '600',
-  },
+  secondaryBtn: { alignItems: 'center' },
+  secondaryBtnText: { fontSize: 14, color: GRAY, fontWeight: '600' },
+  linkText: { color: BRAND_GREEN, fontWeight: '900' },
 
-  // Back Button
-  backButton: {
+  backBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: 8,
-    backgroundColor: '#F0FDF4',
-    borderColor: '#DCFCE7',
-    borderWidth: 1,
+    marginTop: 30,
+    gap: 8,
   },
-  backIcon: {
-    marginRight: 8,
-  },
-  backText: {
-    color: BRAND_GREEN,
-    fontWeight: '600',
-    fontSize: 14,
-  },
+  backBtnText: { color: '#fff', fontSize: 14, fontWeight: '800' },
 });

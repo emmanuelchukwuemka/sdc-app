@@ -4,6 +4,7 @@ import { StatusBar } from 'expo-status-bar';
 import { View, Text, StyleSheet, ActivityIndicator, Linking } from 'react-native';
 
 import { NavigationContainer } from '@react-navigation/native';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -19,12 +20,13 @@ import AppNavigator from './components/AppNavigator'; // ✅ Surrogate combined 
 import RoleSelection from './screens/RoleSelection';
 import Login from './screens/Login';
 import Register from './screens/Register';
-import VerifyEmail from './screens/VerifyEmail';
 import ForgetPassword from './screens/ForgetPassword';
 import PasswordResetConfirm from './screens/PasswordResetConfirm';
+import AdminLogin from './screens/AdminLogin';
 
 import KycSurrogate from './screens/KycSurrogate';
 import KycDonor from './screens/KycDonor';
+import DonorKycWizard from './screens/DonorKycWizard';
 import KycIntendingParent from './screens/KycIntendingParent';
 import KycAgency from './screens/KycAgency';
 
@@ -50,9 +52,11 @@ import Notifications from './screens/Notifications';
 // ✅ New: import IP dashboard
 import IpDashboard from './screens/IpDashboard';
 import IpDrawerNavigator from './components/IpDrawerNavigator';
+import SurrogateDrawerNavigator from './components/SurrogateDrawerNavigator';
 
 const BRAND_GREEN = '#16A34A';
 const Tab = createBottomTabNavigator();
+const Stack = createNativeStackNavigator();
 
 function HomeFallback({ role = 'IP' }) {
   return (
@@ -75,11 +79,10 @@ export default function App() {
   const [subscription, setSubscription] = useState(null);
   const [adminView, setAdminView] = useState('commissions');
   const [showRegister, setShowRegister] = useState(false);
-  const [showVerify, setShowVerify] = useState(false);
-  const [verifyEmail, setVerifyEmail] = useState('');
   const [showForgetPassword, setShowForgetPassword] = useState(false);
   const [showPasswordResetConfirm, setShowPasswordResetConfirm] = useState(false);
   const [resetToken, setResetToken] = useState(null);
+  const [showAdminLogin, setShowAdminLogin] = useState(false);
 
   // Auto-login on app start
   // Auto-login / Session Check on app start
@@ -101,17 +104,24 @@ export default function App() {
         }
       } catch (e) {
         console.log('Session check error:', e);
-      } finally {
-        // Keep splash screen visible for at least 2s for branding
-        // or let the splash animation finish calling onDone ?
-        // actually, we set ready=true via onDone callback in JSX,
-        // but we need to ensure we don't show login screen momentarily if session exists.
-
-        // Wait for splash animation to call onDone.
-        // But we can pre-load data here.
       }
     };
     initSession();
+
+    // Listen for auth changes (e.g. from Profile logout)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_OUT') {
+        setUser(null);
+        setRole(null);
+        setKycApproved(false);
+      } else if (event === 'SIGNED_IN' && session?.user) {
+        // Optionally handle sign-in here or rely on login screen callbacks
+      }
+    });
+
+    return () => {
+      subscription?.unsubscribe();
+    };
   }, []);
 
   const handleSplashDone = useCallback(() => setReady(true), []);
@@ -148,6 +158,8 @@ export default function App() {
 
     if (profile.role === 'ADMIN') return;
 
+    // KYC check logic for authenticated users
+
     try {
       const { data: kycRow, error } = await supabase
         .from('kyc_documents')
@@ -180,9 +192,31 @@ export default function App() {
   }
 
   if (!role) {
+    if (showAdminLogin) {
+      return (
+        <SafeAreaProvider>
+          <AdminLogin
+            onSuccess={(profile) => {
+              setUser(profile);
+              setRole(profile.role);
+              setShowAdminLogin(false);
+            }}
+            onBack={() => {
+              setShowAdminLogin(false);
+            }}
+          />
+        </SafeAreaProvider>
+      );
+    }
     return (
       <SafeAreaProvider>
-        <RoleSelection onSelect={(selected) => setRole(selected)} />
+        <RoleSelection onSelect={(selected) => {
+          if (selected === 'ADMIN_LOGIN') {
+            setShowAdminLogin(true);
+          } else {
+            setRole(selected);
+          }
+        }} />
       </SafeAreaProvider>
     );
   }
@@ -217,11 +251,40 @@ export default function App() {
         <SafeAreaProvider>
           <Register
             role={role}
-            onSuccess={(email) => {
+            onSuccess={async (user) => {
               setShowRegister(false);
-              if (email) {
-                setVerifyEmail(email);
-                setShowVerify(true);
+              if (user) {
+                // Auto-login after registration
+                // Fetch the complete profile from database
+                const { data: profile, error } = await supabase
+                  .from('kyc_documents')
+                  .select('user_id as id, role, form_data')
+                  .eq('user_id', user.id)
+                  .single();
+
+                if (profile && !error) {
+                  // Extract profile data from form_data
+                  const completeProfile = {
+                    id: profile.id,
+                    role: profile.role,
+                    first_name: profile.form_data?.first_name,
+                    last_name: profile.form_data?.last_name,
+                    username: profile.form_data?.username,
+                    email: profile.form_data?.email
+                  };
+                  handleLoginSuccess(completeProfile);
+                } else {
+                  // Fallback to user metadata if database fetch fails
+                  const fallbackProfile = {
+                    id: user.id,
+                    role: role,
+                    first_name: user.user_metadata?.first_name,
+                    last_name: user.user_metadata?.last_name,
+                    username: user.user_metadata?.username,
+                    email: user.email
+                  };
+                  handleLoginSuccess(fallbackProfile);
+                }
               }
             }}
             onBack={() => setShowRegister(false)}
@@ -229,42 +292,7 @@ export default function App() {
         </SafeAreaProvider>
       );
     }
-    if (showVerify) {
-      return (
-        <SafeAreaProvider>
-          <VerifyEmail
-            email={verifyEmail}
-            onSuccess={async (user) => {
-              setShowVerify(false);
-              setVerifyEmail('');
 
-              if (user) {
-                // Auto-login after verification
-                // Refresh profile to be sure
-                const { data: profile } = await supabase
-                  .from('users')
-                  .select('*')
-                  .eq('id', user.id)
-                  .single();
-
-                if (profile) {
-                  handleLoginSuccess(profile);
-                } else {
-                  // Fallback if profile create trigger is slow, use metadata
-                  const meta = user.user_metadata || {};
-                  handleLoginSuccess({
-                    id: user.id,
-                    role: meta.role || role,
-                    ...meta
-                  });
-                }
-              }
-            }}
-            onBack={() => setShowVerify(false)}
-          />
-        </SafeAreaProvider>
-      );
-    }
     return (
       <SafeAreaProvider>
         <Login
@@ -345,6 +373,22 @@ export default function App() {
           onOpenDisputes={() => setAdminView('disputes')}
           onOpenReports={() => setAdminView('reports')}
           onOpenAgencies={() => setAdminView('agencies')}
+          onLogout={async () => {
+            try {
+              // Skip actual logout since we're bypassing auth for non-admin
+              // await supabase.auth.signOut();
+            } catch (e) {
+              console.log('Logout error', e?.message || e);
+            } finally {
+              // Reset to null to show role selection
+              setUser(null);
+              setRole(null);
+              // Only sign out if it's a real authenticated user (admin)
+              if (user?.role === 'ADMIN') {
+                await supabase.auth.signOut();
+              }
+            }
+          }}
         />
       </SafeAreaProvider>
     );
@@ -466,17 +510,16 @@ export default function App() {
 
   const currentUserId = user?.id;
 
-  // ✅ Surrogate Flow (uses AppNavigator)
+  // ✅ Surrogate Flow (uses SurrogateDrawerNavigator directly)
   if (user.role === 'SURROGATE' && kycApproved) {
     return (
       <SafeAreaProvider>
         <NavigationContainer>
-          <AppNavigator
+          <SurrogateDrawerNavigator
             userId={currentUserId}
-            role={user.role}
             onLogout={async () => {
               try {
-                // Skip actual logout since we're bypassing auth
+                // Skip actual logout since we're bypassing auth for non-admin
                 // await supabase.auth.signOut();
               } catch (e) {
                 console.log('Logout error', e?.message || e);
@@ -484,7 +527,11 @@ export default function App() {
                 // Reset to null to show role selection
                 setUser(null);
                 setRole(null);
-                await supabase.auth.signOut();
+                setKycApproved(false); // Reset KYC too if they logout
+                // Only sign out if it's a real authenticated user (admin)
+                if (user?.role === 'ADMIN') {
+                  await supabase.auth.signOut();
+                }
               }
             }}
           />
@@ -502,7 +549,7 @@ export default function App() {
             userId={currentUserId}
             onLogout={async () => {
               try {
-                // Skip actual logout since we're bypassing auth
+                // Skip actual logout since we're bypassing auth for non-admin
                 // await supabase.auth.signOut();
               } catch (e) {
                 console.log('Logout error', e?.message || e);
@@ -510,7 +557,10 @@ export default function App() {
                 // Reset to null to show role selection
                 setUser(null);
                 setRole(null);
-                await supabase.auth.signOut();
+                // Only sign out if it's a real authenticated user (admin)
+                if (user?.role === 'ADMIN') {
+                  await supabase.auth.signOut();
+                }
               }
             }}
           />
@@ -523,63 +573,108 @@ export default function App() {
     return (
       <SafeAreaProvider>
         <NavigationContainer>
-          <Tab.Navigator
-            screenOptions={({ route }) => ({
-              tabBarActiveTintColor: BRAND_GREEN,
-              tabBarInactiveTintColor: '#9CA3AF',
-              tabBarStyle: { height: 62, paddingBottom: 8, paddingTop: 6 },
-              tabBarLabelStyle: { fontWeight: '700', fontSize: 12 },
-              tabBarIcon: ({ color, focused }) => {
-                let name = 'ellipse';
-                switch (route.name) {
-                  case 'Home':
-                    name = focused ? 'home' : 'home-outline';
-                    break;
-                  case 'Dashboard':
-                    name = focused ? 'speedometer' : 'speedometer-outline';
-                    break;
-                  case 'Wallet':
-                    name = focused ? 'card' : 'card-outline';
-                    break;
-                  case 'Chat':
-                    name = focused ? 'chatbubbles' : 'chatbubbles-outline';
-                    break;
-                }
-                return <Ionicons name={name} size={22} color={color} />;
-              },
-            })}
-            initialRouteName="Dashboard"
-          >
-            <Tab.Screen
-              name="Home"
-              component={Marketplace}
-              options={{ title: 'Market' }}
-              initialParams={{ userId: currentUserId }}
-            />
+          <Stack.Navigator screenOptions={{ headerShown: false }}>
+            <Stack.Screen name="DonorTabs">
+              {() => (
+                <Tab.Navigator
+                  screenOptions={({ route }) => ({
+                    tabBarActiveTintColor: BRAND_GREEN,
+                    tabBarInactiveTintColor: '#9CA3AF',
+                    tabBarStyle: { height: 62, paddingBottom: 8, paddingTop: 6 },
+                    tabBarLabelStyle: { fontWeight: '700', fontSize: 12 },
+                    tabBarIcon: ({ color, focused }) => {
+                      let name = 'ellipse';
+                      switch (route.name) {
+                        case 'Home':
+                          name = focused ? 'home' : 'home-outline';
+                          break;
+                        case 'Dashboard':
+                          name = focused ? 'speedometer' : 'speedometer-outline';
+                          break;
+                        case 'Wallet':
+                          name = focused ? 'card' : 'card-outline';
+                          break;
+                        case 'Chat':
+                          name = focused ? 'chatbubbles' : 'chatbubbles-outline';
+                          break;
+                      }
+                      return <Ionicons name={name} size={22} color={color} />;
+                    },
+                  })}
+                  initialRouteName="Dashboard"
+                >
+                  <Tab.Screen
+                    name="Home"
+                    component={Marketplace}
+                    options={{ title: 'Market' }}
+                    initialParams={{ userId: currentUserId }}
+                  />
 
-            <Tab.Screen
-              name="Dashboard"
-              component={require('./screens/DonorDashboard').default}
-              options={{ title: 'Dashboard' }}
-              initialParams={{ role: user.role, userId: currentUserId }}
-            />
+                  <Tab.Screen
+                    name="Dashboard"
+                    component={require('./screens/DonorDashboard').default}
+                    options={{
+                      title: 'Dashboard',
+                      headerRight: () => (
+                        <Ionicons
+                          name="log-out-outline"
+                          size={24}
+                          color={BRAND_GREEN}
+                          style={{ marginRight: 10 }}
+                          onPress={() => {
+                            // Trigger logout function
+                            try {
+                              setUser(null);
+                              setRole(null);
+                              if (user?.role === 'ADMIN') {
+                                supabase.auth.signOut();
+                              }
+                            } catch (e) {
+                              console.log('Logout error', e?.message || e);
+                            }
+                          }}
+                        />
+                      )
+                    }}
+                    initialParams={{ role: user.role, userId: currentUserId }}
+                  />
 
-            <Tab.Screen name="Wallet" options={{ title: 'Wallet' }}>
-              {({ navigation }) => (
-                <Wallet userId={currentUserId} onBack={() => navigation.goBack()} />
+                  <Tab.Screen name="Wallet" options={{ title: 'Wallet' }}>
+                    {({ navigation }) => (
+                      <Wallet userId={currentUserId} onBack={() => navigation.goBack()} />
+                    )}
+                  </Tab.Screen>
+
+                  <Tab.Screen name="Chat" options={{ title: 'Chat' }}>
+                    {({ navigation }) => (
+                      <Chat
+                        userId={currentUserId}
+                        onBack={() => navigation.goBack()}
+                        conversationId="dddddddd-dddd-dddd-dddd-dddddddddddd"
+                      />
+                    )}
+                  </Tab.Screen>
+                </Tab.Navigator>
               )}
-            </Tab.Screen>
+            </Stack.Screen>
 
-            <Tab.Screen name="Chat" options={{ title: 'Chat' }}>
-              {({ navigation }) => (
-                <Chat
-                  userId={currentUserId}
-                  onBack={() => navigation.goBack()}
-                  conversationId="donor-chat"
+            {/* Screens accessible from Dashboard */}
+            <Stack.Screen name="DonorKycWizard" component={DonorKycWizard} />
+            <Stack.Screen name="Profile">
+              {(props) => (
+                <Profile
+                  {...props}
+                  onLogout={() => {
+                    setUser(null);
+                    setRole(null);
+                    setKycApproved(false);
+                    supabase.auth.signOut().catch(() => { });
+                  }}
                 />
               )}
-            </Tab.Screen>
-          </Tab.Navigator>
+            </Stack.Screen>
+
+          </Stack.Navigator>
         </NavigationContainer>
       </SafeAreaProvider>
     );

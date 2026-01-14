@@ -28,11 +28,21 @@ export default function CustomDrawerContent(props) {
     let mounted = true;
     const fetchUser = async () => {
       const { data, error } = await supabase
-        .from('users')
-        .select('first_name, last_name, role, profile_image')
-        .eq('id', userId)
+        .from('kyc_documents')
+        .select('role, form_data')
+        .eq('user_id', userId)
         .maybeSingle();
-      if (!error && mounted) setUser(data);
+      if (!error && mounted && data) {
+        // Extract user info from form_data
+        setUser({
+          first_name: data.form_data?.first_name || '',
+          last_name: data.form_data?.last_name || '',
+          role: data.role,
+          profile_image: data.form_data?.profile_image || null
+        });
+      } else if (!error && mounted) {
+        setUser(null);
+      }
     };
     fetchUser();
     return () => {
