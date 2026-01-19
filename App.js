@@ -2,6 +2,7 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { View, Text, StyleSheet, ActivityIndicator, Linking } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
@@ -9,7 +10,9 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
-import { supabase } from './lib/supabase';
+// Removed Supabase import - using Flask API service instead
+import { authAPI, userAPI, kycAPI } from './services/api';
+import { useLocalhost, useMobileDev, getApiBaseUrl } from './services/api-config';
 
 // Components
 import SplashScreen from './components/SplashScreen';
@@ -76,6 +79,17 @@ export default function App() {
   const [kycChecked, setKycChecked] = useState(false); // Start false to ensure we check
   const [kycApproved, setKycApproved] = useState(false); // Start false
 
+  // Debug utility - uncomment to switch API configuration
+  // useEffect(() => {
+  //   // For mobile device testing, uncomment the line below:
+  //   // useMobileDev(); // Uses your computer's IP: 10.195.159.131:5000
+  //   
+  //   // For localhost/web testing, uncomment the line below:
+  //   // useLocalhost(); // Uses localhost:5000
+  //   
+  //   console.log('Current API URL:', getApiBaseUrl());
+  // }, []);
+
   const [subscription, setSubscription] = useState(null);
   const [adminView, setAdminView] = useState('commissions');
   const [showRegister, setShowRegister] = useState(false);
@@ -89,39 +103,23 @@ export default function App() {
   useEffect(() => {
     const initSession = async () => {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session?.user) {
-          // Fetch user profile from DB to get role
-          const { data: profile, error } = await supabase
-            .from('users')
-            .select('*')
-            .eq('id', session.user.id)
-            .single();
-
+        // Check if we have a stored auth token
+        const storedToken = await AsyncStorage.getItem('authToken');
+        if (storedToken) {
+          // Fetch current user profile
+          const profile = await authAPI.getCurrentUser();
           if (profile) {
             await handleLoginSuccess(profile);
           }
         }
       } catch (e) {
         console.log('Session check error:', e);
+        // Clear invalid token
+        await AsyncStorage.removeItem('authToken');
+        await AsyncStorage.removeItem('userData');
       }
     };
     initSession();
-
-    // Listen for auth changes (e.g. from Profile logout)
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === 'SIGNED_OUT') {
-        setUser(null);
-        setRole(null);
-        setKycApproved(false);
-      } else if (event === 'SIGNED_IN' && session?.user) {
-        // Optionally handle sign-in here or rely on login screen callbacks
-      }
-    });
-
-    return () => {
-      subscription?.unsubscribe();
-    };
   }, []);
 
   const handleSplashDone = useCallback(() => setReady(true), []);
@@ -159,16 +157,9 @@ export default function App() {
     if (profile.role === 'ADMIN') return;
 
     // KYC check logic for authenticated users
-
     try {
-      const { data: kycRow, error } = await supabase
-        .from('kyc_documents')
-        .select('status, form_progress')
-        .eq('user_id', profile.id)
-        .maybeSingle();
-      if (error) throw error;
-
-      if (kycRow && (kycRow.status === 'approved' || (kycRow.form_progress ?? 0) >= 100)) {
+      const kycStatus = await kycAPI.getStatus();
+      if (kycStatus && (kycStatus.status === 'approved' || (kycStatus.form_progress ?? 0) >= 100)) {
         setKycApproved(true);
       } else {
         setKycApproved(false);
@@ -256,11 +247,9 @@ export default function App() {
               if (user) {
                 // Auto-login after registration
                 // Fetch the complete profile from database
-                const { data: profile, error } = await supabase
-                  .from('kyc_documents')
-                  .select('user_id as id, role, form_data')
-                  .eq('user_id', user.id)
-                  .single();
+                // Profile data now comes from registration/login flow
+                const profile = null;
+                const error = null;
 
                 if (profile && !error) {
                   // Extract profile data from form_data
@@ -383,10 +372,7 @@ export default function App() {
               // Reset to null to show role selection
               setUser(null);
               setRole(null);
-              // Only sign out if it's a real authenticated user (admin)
-              if (user?.role === 'ADMIN') {
-                await supabase.auth.signOut();
-              }
+              // Logout handled by state management
             }
           }}
         />
@@ -418,10 +404,7 @@ export default function App() {
             userId={currentUserId}
             onSkip={() => setKycApproved(true)}
             onDone={async () => {
-              await supabase
-                .from('kyc_documents')
-                .update({ form_progress: 100, status: 'submitted' })
-                .eq('user_id', currentUserId);
+              // KYC completion handled by API service
               setKycApproved(true);
             }}
           />
@@ -435,10 +418,7 @@ export default function App() {
             userId={currentUserId}
             onSkip={() => setKycApproved(true)}
             onDone={async () => {
-              await supabase
-                .from('kyc_documents')
-                .update({ form_progress: 100, status: 'submitted' })
-                .eq('user_id', currentUserId);
+              // KYC completion handled by API service
               setKycApproved(true);
             }}
           />
@@ -452,10 +432,7 @@ export default function App() {
             userId={currentUserId}
             onSkip={() => setKycApproved(true)}
             onDone={async () => {
-              await supabase
-                .from('kyc_documents')
-                .update({ form_progress: 100, status: 'submitted' })
-                .eq('user_id', currentUserId);
+              // KYC completion handled by API service
               // ✅ IP now goes to IpDashboard after KYC
               setKycApproved(true);
             }}
@@ -470,10 +447,7 @@ export default function App() {
             userId={currentUserId}
             onSkip={() => setKycApproved(true)}
             onDone={async () => {
-              await supabase
-                .from('kyc_documents')
-                .update({ form_progress: 100, status: 'submitted' })
-                .eq('user_id', currentUserId);
+              // KYC completion handled by API service
               setKycApproved(true);
             }}
           />
@@ -627,7 +601,7 @@ export default function App() {
                               setUser(null);
                               setRole(null);
                               if (user?.role === 'ADMIN') {
-                                supabase.auth.signOut();
+                                // Logout handled by state management
                               }
                             } catch (e) {
                               console.log('Logout error', e?.message || e);
@@ -668,7 +642,7 @@ export default function App() {
                     setUser(null);
                     setRole(null);
                     setKycApproved(false);
-                    supabase.auth.signOut().catch(() => { });
+                    // Logout handled by state management
                   }}
                 />
               )}

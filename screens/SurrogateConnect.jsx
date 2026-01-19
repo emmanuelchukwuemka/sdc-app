@@ -9,7 +9,7 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { supabase } from '../lib/supabase';
+// import { supabase } from '../lib/supabase'; // Removed - using Flask API
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 

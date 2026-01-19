@@ -13,7 +13,8 @@ import {
   StatusBar
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { supabase } from '../lib/supabase';
+// Removed Supabase import - using Flask API service instead
+import { marketplaceAPI, favoritesAPI, badgesAPI } from '../services/api';
 import { Ionicons } from '@expo/vector-icons';
 import { LISTINGS_RAW } from '../data/listings';
 import { toPublicListing } from '../constants/privacy';
@@ -77,8 +78,8 @@ export default function Marketplace({
     let on = true;
     (async () => {
       try {
-        const { data } = await supabase.from('marketplace_unlocks').select('listing_id').eq('user_id', userId);
-        if (on && data) setUnlockedIds(new Set(data.map(r => r.listing_id)));
+        const unlocks = await marketplaceAPI.getUnlocks();
+        if (on && unlocks) setUnlockedIds(new Set(unlocks));
       } catch (e) { }
     })();
     return () => { on = false; };
@@ -88,8 +89,8 @@ export default function Marketplace({
     let on = true;
     (async () => {
       try {
-        const { data } = await supabase.from('favorites').select('target_user_id').eq('ip_id', userId);
-        if (on && data) setFavoriteIds(new Set(data.map(r => r.target_user_id)));
+        const favorites = await favoritesAPI.getFavorites();
+        if (on && favorites) setFavoriteIds(new Set(favorites));
       } catch (e) { }
     })();
     return () => { on = false; };
@@ -98,8 +99,8 @@ export default function Marketplace({
   useEffect(() => {
     (async () => {
       try {
-        const { data } = await supabase.from('commission_settings').select('percent').eq('category', 'unlock').limit(1);
-        if (data?.length) setUnlockCommissionPct(Number(data[0].percent));
+        const commissions = await marketplaceAPI.getCommissionSettings();
+        if (commissions && commissions.unlock) setUnlockCommissionPct(Number(commissions.unlock));
       } catch (e) { }
     })();
   }, [])
@@ -112,12 +113,12 @@ export default function Marketplace({
 
     (async () => {
       try {
-        const { data } = await supabase.from('verification_badges').select('user_id, type, status').in('user_id', uuids);
+        const badgesData = await badgesAPI.getBadgesByUsers(uuids);
         const map = {};
-        (data || []).forEach(row => {
-          if (row.status === 'verified') {
-            if (!map[row.user_id]) map[row.user_id] = [];
-            map[row.user_id].push(row.type);
+        (badgesData || []).forEach(badge => {
+          if (badge.status === 'verified') {
+            if (!map[badge.user_id]) map[badge.user_id] = [];
+            map[badge.user_id].push(badge.type);
           }
         });
         setBadgesMap(map);
@@ -132,10 +133,10 @@ export default function Marketplace({
       const isFav = favoriteIds.has(targetUserId);
 
       if (isFav) {
-        await supabase.from('favorites').delete().eq('ip_id', userId).eq('target_user_id', targetUserId);
+        await favoritesAPI.removeFavorite(targetUserId);
         setFavoriteIds(prev => { const n = new Set(prev); n.delete(targetUserId); return n; });
       } else {
-        await supabase.from('favorites').insert([{ ip_id: userId, target_user_id: targetUserId }]);
+        await favoritesAPI.addFavorite(targetUserId);
         setFavoriteIds(prev => new Set(prev).add(targetUserId));
       }
     } catch (e) { Alert.alert('Error', 'Could not update favorites'); }
@@ -144,8 +145,7 @@ export default function Marketplace({
   const handleUnlock = async (listingId) => {
     try {
       setLoading(true);
-      const { error } = await supabase.from('marketplace_unlocks').insert({ user_id: userId, listing_id: listingId });
-      if (error) throw error;
+      await marketplaceAPI.unlockProfile(listingId);
 
       // Simulate escrow/payment logic silently for now or add record
       // ... (existing escrow logic kept simple for UI focus)
@@ -160,7 +160,8 @@ export default function Marketplace({
   };
 
   const submitDispute = async (listingId) => {
-    // ... (existing logic)
+    // TODO: Implement dispute submission via API
+    // This would require a disputes API endpoint
     setOpenDisputeFor(null);
     Alert.alert("Submitted", "Dispute submitted for review.");
   };

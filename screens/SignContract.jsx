@@ -6,7 +6,7 @@ import Signature from 'react-native-signature-canvas';
 import * as Print from 'expo-print';
 import * as FileSystem from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
-import { supabase } from '../lib/supabase';
+// import { supabase } from '../lib/supabase'; // Removed - using Flask API
 
 const BRAND_GREEN = '#16A34A';
 const ACCENT_WHITE = '#FFFFFF';

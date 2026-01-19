@@ -9,7 +9,7 @@ import {
 } from 'react-native';
 import { DrawerContentScrollView } from '@react-navigation/drawer';
 import { Ionicons } from '@expo/vector-icons';
-import { supabase } from '../lib/supabase';
+import { authAPI } from '../services/api';
 
 const FALLBACK_AVATAR = require('../assets/avatar.png');
 
@@ -27,21 +27,22 @@ export default function CustomDrawerContent(props) {
 
     let mounted = true;
     const fetchUser = async () => {
-      const { data, error } = await supabase
-        .from('kyc_documents')
-        .select('role, form_data')
-        .eq('user_id', userId)
-        .maybeSingle();
-      if (!error && mounted && data) {
-        // Extract user info from form_data
-        setUser({
-          first_name: data.form_data?.first_name || '',
-          last_name: data.form_data?.last_name || '',
-          role: data.role,
-          profile_image: data.form_data?.profile_image || null
-        });
-      } else if (!error && mounted) {
-        setUser(null);
+      try {
+        // Use authAPI to get current user info
+        const currentUser = await authAPI.getCurrentUser();
+        if (mounted) {
+          setUser({
+            first_name: currentUser.first_name || '',
+            last_name: currentUser.last_name || '',
+            role: currentUser.role,
+            email: currentUser.email
+          });
+        }
+      } catch (error) {
+        console.log('Failed to fetch user data:', error);
+        if (mounted) {
+          setUser(null);
+        }
       }
     };
     fetchUser();

@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { supabase } from '../lib/supabase';
+// import { supabase } from '../lib/supabase'; // Removed - using Flask API
 
 const BRAND_GREEN = '#16A34A';
 const GRAY = '#6B7280';

@@ -11,7 +11,8 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { supabase } from '../lib/supabase';
+// Removed Supabase import - using Flask API service instead
+import { notificationsAPI } from '../services/api';
 
 const BRAND_GREEN = '#16A34A';
 const ACCENT_WHITE = '#FFFFFF';
@@ -26,13 +27,10 @@ export default function Notifications({ route, navigation }) {
   const loadNotifications = async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
-        .from('notifications')
-        .select('*')
-        .eq('user_id', userId)
-        .order('created_at', { ascending: false });
-      if (error) throw error;
-      setNotifications(data || []);
+      
+      // Fetch notifications from Flask API
+      const notifications = await notificationsAPI.getNotifications();
+      setNotifications(notifications);
     } catch (e) {
       Alert.alert('Error', e?.message || String(e));
     } finally {
@@ -46,11 +44,8 @@ export default function Notifications({ route, navigation }) {
 
   const markAsRead = async (id) => {
     try {
-      const { error } = await supabase
-        .from('notifications')
-        .update({ status: 'read' })
-        .eq('id', id);
-      if (error) throw error;
+      // Update notification status via Flask API
+      await notificationsAPI.markAsRead(id);
       setNotifications((prev) =>
         prev.map((n) => (n.id === id ? { ...n, status: 'read' } : n))
       );
@@ -98,7 +93,7 @@ export default function Notifications({ route, navigation }) {
                   name={
                     item.severity === 'warning'
                       ? 'warning-outline'
-                      : 'notifications-outline'
+                      : (item.status === 'unread' ? 'mail-unread-outline' : 'mail-open-outline')
                   }
                   size={20}
                   color={BRAND_GREEN}

@@ -10,7 +10,8 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { supabase } from '../lib/supabase';
+// Removed Supabase import - using Flask API service instead
+import { walletAPI } from '../services/api';
 
 const BRAND_GREEN = '#16A34A';
 const ACCENT_WHITE = '#FFFFFF';
@@ -30,39 +31,20 @@ export default function Wallet({ route, navigation }) {
       try {
         setLoading(true);
 
-        // Escrow transactions
-        const { data: escData, error: escErr } = await supabase
-          .from('escrow_transactions')
-          .select('*')
-          .eq('user_id', userId)
-          .order('created_at', { ascending: false });
-        if (escErr) throw escErr;
+        // Fetch wallet data from Flask API
+        const [transactions, balance] = await Promise.all([
+          walletAPI.getTransactions(),
+          walletAPI.getBalance()
+        ]);
 
-        // Wallet row
-        const { data: wRows, error: wErr } = await supabase
-          .from('wallets')
-          .select('id, user_id, referral_balance, balance, currency, updated_at')
-          .eq('user_id', userId)
-          .limit(1);
-        if (wErr) throw wErr;
-        const w = wRows && wRows[0] ? wRows[0] : null;
-
-        // Wallet transactions
-        let wtData = [];
-        if (w) {
-          const { data: wtRows, error: wtErr } = await supabase
-            .from('wallet_transactions')
-            .select('*')
-            .eq('wallet_id', w.id)
-            .order('created_at', { ascending: false });
-          if (wtErr) throw wtErr;
-          wtData = wtRows || [];
-        }
+        // Separate escrow and wallet transactions
+        const escrowTxs = transactions.filter(tx => tx.type === 'surrogate_payment');
+        const walletTxs = transactions.filter(tx => tx.type !== 'surrogate_payment');
 
         if (!mounted) return;
-        setEscrowTxs(escData || []);
-        setWalletTxs(wtData || []);
-        setWallet(w || null);
+        setEscrowTxs(escrowTxs);
+        setWalletTxs(walletTxs);
+        setWallet(balance);
       } catch (e) {
         console.log('wallet load error', e?.message || e);
       } finally {

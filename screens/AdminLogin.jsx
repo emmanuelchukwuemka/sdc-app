@@ -13,7 +13,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import { Ionicons } from '@expo/vector-icons';
-import { supabase } from '../lib/supabase';
+import { authAPI } from '../services/api';
 import AlertModal from '../components/AlertModal';
 
 const BRAND_GREEN = '#16A34A';
@@ -58,72 +58,35 @@ export default function AdminLogin({ onSuccess, onBack }) {
       return;
     }
 
-    // CHECK HARDCODED CREDENTIALS
-    if (email.trim() === 'admin@sdc-mobile.com' && password === 'SdcStrong@2026') {
-      showAlert('Success', 'Logged in with hardcoded admin info.', 'success', () => {
-        if (onSuccess) {
-          onSuccess({
-            id: 'hardcoded_admin',
-            email: 'admin@sdc-mobile.com',
-            role: 'ADMIN',
-            first_name: 'Super',
-            last_name: 'Admin'
-          });
-        }
-      });
-      return;
-    }
+    // Remove hardcoded credentials - use proper API authentication
 
     try {
       setLoading(true);
 
-      const { data: { user }, error: signInErr } = await supabase.auth.signInWithPassword({
-        email: email.trim(),
-        password: password
-      });
-
-      if (signInErr) {
-        throw signInErr;
-      }
-
-      if (user) {
-        // Fetch updated profile to ensure we have the correct role
-        const { data: profile, error: profileError } = await supabase
-          .from('kyc_documents')
-          .select('role, form_data')
-          .eq('user_id', user.id)
-          .single();
-
-        if (profileError) {
-          throw profileError;
-        }
-
-        if (profile && profile.role === 'ADMIN') {
-          // Construct a profile object similar to the old users table
-          const completeProfile = {
-            id: user.id,
-            role: profile.role,
-            first_name: profile.form_data?.first_name,
-            last_name: profile.form_data?.last_name,
-            username: profile.form_data?.username,
-            email: user.email
-          };
-          showAlert('Success', 'Successfully logged in as administrator.', 'success', () => {
-            if (onSuccess) {
-              onSuccess(completeProfile);
-            }
-          });
-        } else {
-          // Not an admin
-          await supabase.auth.signOut();
-          showAlert('Access Denied', 'This account does not have administrator privileges.', 'error');
-        }
+      // Use Flask API for admin login
+      const loginResponse = await authAPI.login(email.trim(), password);
+      
+      // Check if user has admin role
+      if (loginResponse.role === 'ADMIN') {
+        showAlert('Success', 'Successfully logged in as administrator.', 'success', () => {
+          if (onSuccess) {
+            onSuccess({
+              id: loginResponse.user_id,
+              email: loginResponse.email,
+              role: loginResponse.role,
+              first_name: loginResponse.first_name,
+              last_name: loginResponse.last_name
+            });
+          }
+        });
       } else {
-        showAlert('Error', 'Could not complete login.', 'error');
+        // Not an admin
+        await authAPI.logout();
+        showAlert('Access Denied', 'This account does not have administrator privileges.', 'error');
       }
     } catch (err) {
       console.error('Admin login error:', err);
-      showAlert('Login Failed', err.message || 'An error occurred during login.', 'error');
+      showAlert('Login Failed', err.message || 'Invalid credentials or insufficient privileges.', 'error');
     } finally {
       setLoading(false);
     }

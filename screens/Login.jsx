@@ -15,7 +15,9 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { supabase } from '../lib/supabase';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+// Removed Supabase import - using Flask API service instead
+import { authAPI } from '../services/api';
 import AlertModal from '../components/AlertModal';
 import { validateEmailField } from '../utils/validation';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -70,8 +72,11 @@ export default function Login({ role, onLogin, onBack, onGoRegister, onGoForgetP
   };
 
   const handleLogin = async () => {
-    if (identifier.includes('@')) {
-      const emailValidationError = validateEmailField(identifier);
+    const cleanIdentifier = identifier.trim();
+    const cleanPassword = password.trim();
+
+    if (cleanIdentifier.includes('@')) {
+      const emailValidationError = validateEmailField(cleanIdentifier);
       if (emailValidationError) {
         setIdentifierError(emailValidationError);
         return;
@@ -79,48 +84,26 @@ export default function Login({ role, onLogin, onBack, onGoRegister, onGoForgetP
     }
     setIdentifierError('');
 
-    if (!identifier || !password) {
+    if (!cleanIdentifier || !cleanPassword) {
       showAlert('Error', 'Please enter your email/username and password.', 'error');
       return;
     }
 
     try {
       setLoading(true);
-      let emailToUse = identifier;
-      if (!identifier.includes('@')) {
-        const { data, error } = await supabase
-          .from('kyc_documents')
-          .select('form_data->>email as email')
-          .eq('form_data->>username', identifier)
-          .maybeSingle();
-
-        if (error) throw error;
-        if (!data) {
-          throw new Error('No user found with that username.');
-        }
-        emailToUse = data.email;
+      
+      // Direct login with email/password
+      const loginResponse = await authAPI.login(cleanIdentifier, cleanPassword);
+      
+      if (loginResponse.access_token) {
+        // Store the auth token
+        await AsyncStorage.setItem('authToken', loginResponse.access_token);
+        
+        // Call the onLogin callback with user data
+        onLogin(loginResponse.role, loginResponse.user_id);
+      } else {
+        throw new Error('Login failed - no access token received');
       }
-
-      const { data: loginData, error: loginErr } = await supabase.auth.signInWithPassword({
-        email: emailToUse,
-        password,
-      });
-
-      if (loginErr) throw loginErr;
-      const user = loginData.user;
-      if (!user) throw new Error('Login failed.');
-
-      const { data: profile, error: profileErr } = await supabase
-        .from('kyc_documents')
-        .select('role, status')
-        .eq('user_id', user.id)
-        .maybeSingle();
-
-      if (profileErr) throw profileErr;
-      if (!profile) throw new Error('Profile not found.');
-      if (profile.status === 'rejected') throw new Error('Your account has been rejected. Please contact support.');
-
-      onLogin(profile.role, user.id);
     } catch (err) {
       showAlert('Login failed', err.message || String(err), 'error');
     } finally {

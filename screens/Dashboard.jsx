@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { supabase } from '../lib/supabase';
+// import { supabase } from '../lib/supabase'; // Removed - using Flask API
 
 const BRAND_GREEN = '#16A34A';
 const LIGHT_BG = '#F8FAF9';

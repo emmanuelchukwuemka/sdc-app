@@ -14,7 +14,8 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { supabase } from '../lib/supabase';
+// Removed Supabase import - using Flask API service instead
+import { badgesAPI, authAPI } from '../services/api';
 
 const BRAND_GREEN = '#16A34A';
 const BRAND_DARK = '#064E3B';
@@ -39,13 +40,8 @@ export default function Profile({ route, navigation, onLogout }) {
     let on = true;
     (async () => {
       try {
-        const { data, error } = await supabase
-          .from('verification_badges')
-          .select('type, status')
-          .eq('user_id', userId)
-          .eq('status', 'verified');
-        if (error) throw error;
-        if (on) setBadges((data || []).map((r) => r.type));
+        const badgesData = await badgesAPI.getBadgesByUsers([userId]);
+        if (on) setBadges((badgesData || []).map((badge) => badge.type));
       } catch (e) {
         console.log('Badges load error', e?.message || e);
       }
@@ -87,10 +83,7 @@ export default function Profile({ route, navigation, onLogout }) {
           onPress: async () => {
             try {
               setSigningOut(true);
-              const { data: { session } } = await supabase.auth.getSession();
-              if (session) {
-                await supabase.auth.signOut();
-              }
+              await authAPI.logout();
             } catch (e) {
               console.log('Logout error', e?.message || e);
             } finally {

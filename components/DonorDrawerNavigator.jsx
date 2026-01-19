@@ -1,7 +1,7 @@
 // components/DonorDrawerNavigator.jsx
 import React, { useEffect, useState } from 'react';
 import { createDrawerNavigator } from '@react-navigation/drawer';
-import { supabase } from '../lib/supabase';
+// import { supabase } from '../lib/supabase'; // Removed - using Flask API
 import CustomDrawerContent from './CustomDrawerContent';
 import SurrogateNavigator from './SurrogateNavigator'; // reuse bottom tabs for now
 import SurrogateProfile from '../screens/SurrogateProfile';
@@ -15,21 +15,8 @@ export default function DonorDrawerNavigator({ userId, onLogout }) {
 
   useEffect(() => {
     const fetchUser = async () => {
-      const { data, error } = await supabase
-        .from('kyc_documents')
-        .select('user_id as id, role, form_data')
-        .eq('user_id', userId)
-        .maybeSingle();
-      
-      if (!error && data) {
-        // Extract user info from form_data
-        setUser({
-          id: data.id,
-          full_name: `${data.form_data?.first_name || ''} ${data.form_data?.last_name || ''}`.trim(),
-          role: data.role,
-          avatar_url: data.form_data?.profile_image || null
-        });
-      }
+      // User data now passed from parent component
+      // setUser() will be called with profile prop
     };
     
     if (userId) {

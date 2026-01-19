@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { supabase } from '../lib/supabase';
+
 
 const BRAND_GREEN = '#16A34A';
 const BRAND_GREEN_LIGHT = '#ECFDF5';
@@ -53,15 +53,19 @@ export default function DonorKycWizard({ userId, onFinish, onSkip, route, naviga
     const load = async () => {
       try {
         setLoading(true);
-        const { data, error } = await supabase
-          .from('kyc_documents')
-          .select('form_data, status')
-          .eq('user_id', currentUserId)
-          .maybeSingle();
+        // TODO: Replace with kycAPI.getKycDocuments() when implemented
+        // const { data, error } = await supabase
+        //   .from('kyc_documents')
+        //   .select('form_data, status')
+        //   .eq('user_id', currentUserId)
+        //   .maybeSingle();
 
-        if (!error && data?.form_data) {
-          setFormData(data.form_data);
-        }
+        // if (!error && data?.form_data) {
+        //   setFormData(data.form_data);
+        // }
+        
+        // Mock data for now
+        const data = null;
       } catch (e) {
         console.log("Error loading KYC data", e);
       } finally {
@@ -81,11 +85,12 @@ export default function DonorKycWizard({ userId, onFinish, onSkip, route, naviga
         form_data: formData,
       };
 
-      const { error } = await supabase.from('kyc_documents').upsert(payload, {
-        onConflict: 'user_id',
-      });
+      // TODO: Replace with kycAPI.submitKycDocument() when implemented
+      // const { error } = await supabase.from('kyc_documents').upsert(payload, {
+      //   onConflict: 'user_id',
+      // });
 
-      if (error) throw error;
+      // if (error) throw error;
 
       if (final) {
         handleFinish?.();

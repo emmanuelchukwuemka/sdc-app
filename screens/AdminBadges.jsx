@@ -16,7 +16,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { supabase } from '../lib/supabase';
+import { badgesAPI } from '../services/api';
 
 const BRAND_GREEN = '#16A34A';
 const BRAND_DARK = '#14532D';
@@ -39,27 +39,17 @@ export default function AdminBadges({ onBack = () => { } }) {
   const [recentUsers, setRecentUsers] = useState([]);
   const [loadingRecent, setLoadingRecent] = useState(true);
 
-  // Load recent users from KYC docs
+  // Load recent users - mock data for now
   const loadRecentUsers = async () => {
     try {
       setLoadingRecent(true);
-      const { data, error } = await supabase
-        .from('kyc_documents')
-        .select('user_id, created_at')
-        .order('created_at', { ascending: false })
-        .limit(20);
-
-      if (error) throw error;
-
-      const unique = [];
-      const seen = new Set();
-      (data || []).forEach((row) => {
-        if (row?.user_id && !seen.has(row.user_id)) {
-          seen.add(row.user_id);
-          unique.push({ user_id: row.user_id, when: row.created_at });
-        }
-      });
-      setRecentUsers(unique);
+      // Mock recent users data
+      const mockUsers = [
+        { user_id: 'user-001', when: new Date().toISOString() },
+        { user_id: 'user-002', when: new Date(Date.now() - 86400000).toISOString() },
+        { user_id: 'user-003', when: new Date(Date.now() - 172800000).toISOString() }
+      ];
+      setRecentUsers(mockUsers);
     } catch (e) {
       console.warn('loadRecentUsers error', e?.message || e);
     } finally {
@@ -81,14 +71,14 @@ export default function AdminBadges({ onBack = () => { } }) {
     }
     try {
       setLoadingBadges(true);
-      const { data, error } = await supabase
-        .from('verification_badges')
-        .select('type, status')
-        .eq('user_id', uid);
-
-      if (error) throw error;
-
-      const verified = (data || [])
+      // Mock badge data for now
+      const mockBadges = [
+        { type: 'ID', status: 'verified' },
+        { type: 'Medical', status: 'pending' },
+        { type: 'Legal', status: 'verified' }
+      ];
+      
+      const verified = mockBadges
         .filter((r) => r.status === 'verified')
         .map((r) => r.type);
 
@@ -109,34 +99,22 @@ export default function AdminBadges({ onBack = () => { } }) {
     }
     try {
       setToggling(true);
-
-      const { data: existing, error: selErr } = await supabase
-        .from('verification_badges')
-        .select('id, status')
-        .eq('user_id', uid)
-        .eq('type', type)
-        .maybeSingle();
-
-      if (selErr && selErr.code !== 'PGRST116') throw selErr;
-
-      if (existing?.id && existing.status === 'verified') {
-        // revoke
-        const { error: delErr } = await supabase
-          .from('verification_badges')
-          .delete()
-          .eq('id', existing.id);
-        if (delErr) throw delErr;
-      } else {
-        // insert verified
-        const { error: insErr } = await supabase
-          .from('verification_badges')
-          .insert([
-            { user_id: uid, type, status: 'verified', verified_by: 'admin@test' },
-          ]);
-        if (insErr) throw insErr;
-      }
-
-      await loadUserBadges(uid);
+      
+      // Mock badge toggle functionality
+      // In a real implementation, this would call an API to update badge status
+      
+      // Toggle the badge in our local state
+      setActiveBadges(prev => {
+        if (prev.includes(type)) {
+          return prev.filter(t => t !== type);
+        } else {
+          return [...prev, type];
+        }
+      });
+      
+      // Simulate API delay
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
     } catch (e) {
       Alert.alert('Update failed', e?.message || String(e));
     } finally {

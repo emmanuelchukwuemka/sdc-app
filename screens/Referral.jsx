@@ -14,7 +14,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Clipboard from 'expo-clipboard';
 import Constants from 'expo-constants';
-import { supabase } from '../lib/supabase';
+// import { supabase } from '../lib/supabase'; // Removed - using Flask API
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 

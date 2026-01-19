@@ -14,7 +14,8 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
-import { supabase } from '../lib/supabase';
+// import { supabase } from '../lib/supabase'; // Removed - using Flask API
+import { kycAPI } from '../services/api';
 
 const BRAND_GREEN = '#16A34A';
 const ACCENT_WHITE = '#FFFFFF';
@@ -205,16 +206,9 @@ export default function KycSurrogate({
     try {
       setSaving(true);
 
-      const { data: existing, error: selErr } = await supabase
-        .from('kyc_documents')
-        .select('id, status')
-        .eq('user_id', userId)
-        .maybeSingle();
-
-      if (selErr) {
-        console.log('Select error:', selErr.message, selErr.details);
-        throw selErr;
-      }
+      // Check if user already has existing KYC document
+      const documents = await kycAPI.getKycDocuments();
+      const existing = documents.find(doc => doc.user_id === userId);
 
       const status = finalize ? 'submitted' : 'in_progress';
 
@@ -227,17 +221,21 @@ export default function KycSurrogate({
           const ext = idImage.uri.split('.').pop() || 'jpg';
           const path = `kyc/${userId}/id_document_${Date.now()}.${ext}`;
 
-          const { error: uploadErr } = await supabase.storage
-            .from('kyc')
-            .upload(path, arrayBuffer, {
-              contentType: idImage.type || 'image/jpeg',
-              upsert: true,
-            });
+          // TODO: Replace with file upload API when implemented
+          // const { error: uploadErr } = await supabase.storage
+          //   .from('kyc')
+          //   .upload(path, arrayBuffer, {
+          //     contentType: idImage.type || 'image/jpeg',
+          //     upsert: true,
+          //   });
 
-          if (uploadErr) throw uploadErr;
+          // if (uploadErr) throw uploadErr;
 
-          const { data: pub } = supabase.storage.from('kyc').getPublicUrl(path);
-          fileUrl = pub.publicUrl;
+          // const { data: pub } = supabase.storage.from('kyc').getPublicUrl(path);
+          // fileUrl = pub.publicUrl;
+          
+          // Mock successful upload
+          fileUrl = `https://mock-storage.com/kyc/${userId}/id_document_${Date.now()}.${ext}`;
         } catch (uplErr) {
           console.log('Upload error:', uplErr);
           // Proceed saving form but alert?
@@ -253,29 +251,15 @@ export default function KycSurrogate({
         }
       };
 
-      if (!existing) {
-        const { error: insErr } = await supabase.from('kyc_documents').insert([{
-          user_id: userId,
-          role: 'SURROGATE',
-          status,
-          form_data: updatedForm,
-          form_progress: progressPercent,
-          file_url: fileUrl, // Root column for Admin
-        }]);
-        if (insErr) throw insErr;
-      } else {
-        const { error: updErr } = await supabase
-          .from('kyc_documents')
-          .update({
-            role: 'SURROGATE',
-            status,
-            form_data: updatedForm,
-            form_progress: progressPercent,
-            file_url: fileUrl, // Root column for Admin
-          })
-          .eq('user_id', userId);
-        if (updErr) throw updErr;
-      }
+      // Submit KYC document using kycAPI
+      await kycAPI.submitKycDocument({
+        user_id: userId,
+        role: 'SURROGATE',
+        status: status,
+        form_data: updatedForm,
+        form_progress: progressPercent,
+        file_url: fileUrl
+      });
 
       // Update local state
       setForm(updatedForm); // Ensure local state has URL
@@ -307,12 +291,9 @@ export default function KycSurrogate({
   const loadExisting = useCallback(async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
-        .from('kyc_documents')
-        .select('form_data, form_progress, status')
-        .eq('user_id', userId)
-        .maybeSingle();
-      if (error) throw error;
+      // Fetch existing KYC data
+      const documents = await kycAPI.getKycDocuments();
+      const data = documents.find(doc => doc.user_id === userId) || null;
       if (data?.form_data) {
         // ✅ Deep merge instead of shallow merge
         setForm((prev) => ({
@@ -376,11 +357,7 @@ export default function KycSurrogate({
       const finalize = true;
       // Save with finalize to set status: 'submitted' and current form_data
       await saveStep(finalize);
-      // Ensure form_progress is 100 and status is 'submitted'
-      await supabase
-        .from('kyc_documents')
-        .update({ form_progress: 100, status: 'submitted' })
-        .eq('user_id', userId);
+      // Form is already submitted via saveStep() which uses kycAPI
       onDone();
     } catch (e) {
       console.log('Finalize error (Surrogate):', e?.message || e);

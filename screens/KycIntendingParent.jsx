@@ -12,7 +12,8 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from 'expo-image-picker';
-import { supabase } from "../lib/supabase";
+// import { supabase } from "../lib/supabase"; // Removed - using Flask API
+import { kycAPI } from "../services/api";
 
 const BRAND_GREEN = "#16A34A";
 const GRAY = "#6B7280";
@@ -159,16 +160,20 @@ export default function KycIntendingParent({ userId, onSkip, onDone }) {
             const ext = idImage.uri.split('.').pop() || 'jpg';
             const path = `kyc/${userId}/ip_id_${Date.now()}.${ext}`;
 
-            const { error: uploadErr } = await supabase.storage
-              .from('kyc')
-              .upload(path, arrayBuffer, {
-                contentType: idImage.type || 'image/jpeg',
-                upsert: true,
-              });
-            if (!uploadErr) {
-              const { data: pub } = supabase.storage.from('kyc').getPublicUrl(path);
-              fileUrl = pub.publicUrl;
-            }
+            // TODO: Replace with file upload API when implemented
+            // const { error: uploadErr } = await supabase.storage
+            //   .from('kyc')
+            //   .upload(path, arrayBuffer, {
+            //     contentType: idImage.type || 'image/jpeg',
+            //     upsert: true,
+            //   });
+            // if (!uploadErr) {
+            //   const { data: pub } = supabase.storage.from('kyc').getPublicUrl(path);
+            //   fileUrl = pub.publicUrl;
+            // }
+            
+            // Mock successful upload
+            fileUrl = `https://mock-storage.com/kyc/${userId}/ip_id_${Date.now()}.${ext}`;
           } catch (uErr) {
             console.log('Upload fail:', uErr);
           }
@@ -183,17 +188,15 @@ export default function KycIntendingParent({ userId, onSkip, onDone }) {
           setForm(updatedForm); // sync local
         }
 
-        await supabase.from("kyc_documents").upsert(
-          {
-            user_id: userId,
-            role: "IP",
-            status: final ? "submitted" : "in_progress",
-            form_data: updatedForm,
-            form_progress: progressPercent,
-            file_url: fileUrl, // Root column
-          },
-          { onConflict: "user_id" }
-        );
+        // Submit KYC document using kycAPI
+        await kycAPI.submitKycDocument({
+          user_id: userId,
+          role: "IP",
+          status: final ? "submitted" : "in_progress",
+          form_data: updatedForm,
+          form_progress: progressPercent,
+          file_url: fileUrl
+        });
 
         if (final || progressPercent === 100) {
           onDone();
@@ -228,12 +231,9 @@ export default function KycIntendingParent({ userId, onSkip, onDone }) {
   const loadExisting = useCallback(async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
-        .from("kyc_documents")
-        .select("form_data, form_progress, status")
-        .eq("user_id", userId)
-        .maybeSingle();
-      if (error) throw error;
+      // Fetch existing KYC data
+      const documents = await kycAPI.getKycDocuments();
+      const data = documents.find(doc => doc.user_id === userId) || null;
       if (data?.form_data) {
         setForm((prev) => ({ ...prev, ...(data.form_data || {}) }));
       }

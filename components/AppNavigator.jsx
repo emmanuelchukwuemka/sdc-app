@@ -2,7 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { ActivityIndicator, View } from 'react-native';
-import { supabase } from '../lib/supabase';
+// Removed unused Supabase import
 
 // Import all drawer navigators
 import SurrogateDrawerNavigator from './SurrogateDrawerNavigator';

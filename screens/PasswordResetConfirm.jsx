@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
-import { supabase } from '../lib/supabase';
+// import { supabase } from '../lib/supabase'; // Removed - using Flask API
 import AlertModal from '../components/AlertModal';
 
 // Constants

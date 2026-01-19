@@ -13,7 +13,8 @@ import {
   Dimensions
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { supabase } from '../lib/supabase';
+// Removed Supabase import - using Flask API service instead
+import { adminAPI } from '../services/api';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 
@@ -44,28 +45,23 @@ export default function AdminConsole({ onBack = () => { } }) {
     try {
       setLoading(true);
 
-      // Fetch stats first (lightweight)
-      const { data: allRows } = await supabase.from('kyc_documents').select('status');
-      const newStats = { pending: 0, approved: 0, rejected: 0, all: 0 };
-      if (allRows) {
-        newStats.all = allRows.length;
-        allRows.forEach(r => {
-          if (newStats[r.status] !== undefined) newStats[r.status]++;
-        });
-      }
+      // Fetch KYC documents from Flask API
+      const kycDocs = await adminAPI.getKycDocuments();
+      
+      // Calculate stats
+      const newStats = { pending: 0, approved: 0, rejected: 0, all: kycDocs.length };
+      kycDocs.forEach(doc => {
+        if (newStats[doc.status] !== undefined) newStats[doc.status]++;
+      });
       setStats(newStats);
 
-      // Fetch query based on filter
-      let query = supabase
-        .from('kyc_documents')
-        .select('*')
-        .order('created_at', { ascending: false });
+      // Filter documents based on selected filter
+      let filteredRows = kycDocs;
+      if (filter !== 'all') {
+        filteredRows = kycDocs.filter(doc => doc.status === filter);
+      }
 
-      if (filter !== 'all') query = query.eq('status', filter);
-
-      const { data, error } = await query;
-      if (error) throw error;
-      setRows(data || []);
+      setRows(filteredRows);
     } catch (e) {
       Alert.alert('Load error', e?.message || String(e));
     } finally {
@@ -74,19 +70,14 @@ export default function AdminConsole({ onBack = () => { } }) {
     }
   }, [filter]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => { load(); }, [load, filter]);
 
   const decide = async (id, action) => {
     try {
-      const status = action === 'approve' ? 'approved' : 'rejected';
-      const { error } = await supabase
-        .from('kyc_documents')
-        .update({ status, reviewed_at: new Date().toISOString(), reviewed_by: 'Admin' })
-        .eq('id', id);
-      if (error) throw error;
-
+      const response = await adminAPI.updateKycDocument(id, action);
+      
       await load(); // Reload to update stats and list
-      Alert.alert('Success', `KYC Document marked as ${status}.`);
+      Alert.alert('Success', response.msg);
     } catch (e) {
       Alert.alert('Update failed', e?.message || String(e));
     }

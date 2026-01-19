@@ -12,7 +12,8 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { supabase } from '../lib/supabase';
+// Removed Supabase import - using Flask API service instead
+import { kycAPI } from '../services/api';
 
 const BRAND_GREEN = '#16A34A';
 const LIGHT_BG = '#F8FAF9';
@@ -46,19 +47,14 @@ export default function SurrogateDashboard({ route, navigation }) {
       if (!userId) return;
       setLoading(true);
       try {
-        const { data, error } = await supabase
-          .from('kyc_documents')
-          .select('status, form_progress')
-          .eq('user_id', userId)
-          .maybeSingle();
-        if (error) throw error;
+        const kycData = await kycAPI.getStatus();
         if (mounted) {
-          setKycStatus(data?.status ?? null);
-          setFormProgress(Math.max(0, Math.min(100, data?.form_progress ?? 0)));
+          setKycStatus(kycData?.status ?? null);
+          setFormProgress(Math.max(0, Math.min(100, kycData?.form_progress ?? 0)));
 
           // Show tip banner if not dismissed
           const dismissed = await AsyncStorage.getItem('kycTipDismissed');
-          if (dismissed !== 'true' && (data?.form_progress ?? 0) < 100) {
+          if (dismissed !== 'true' && (kycData?.form_progress ?? 0) < 100) {
             setShowTipBanner(true);
           }
         }

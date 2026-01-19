@@ -14,7 +14,8 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { supabase } from '../lib/supabase';
+// Removed Supabase import - using Flask API service instead
+import { adminAPI } from '../services/api';
 
 const BRAND_GREEN = '#16A34A';
 const BRAND_DARK = '#14532D';
@@ -31,13 +32,19 @@ export default function AdminAgencies({ onBack = () => { }, onOpenAgency }) {
   const loadAgencies = async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
-        .from('kyc_documents')
-        .select('user_id as id, form_data->>email as email, form_data->>username as username, created_at')
-        .eq('role', 'AGENCY')
-        .order('created_at', { ascending: false });
-      if (error) throw error;
-      setAgencies(data || []);
+      
+      // Fetch agencies from Flask API
+      const agencies = await adminAPI.getAgencies();
+      
+      // Transform agency data to match expected format
+      const transformedAgencies = agencies.map(agency => ({
+        id: agency.id,
+        email: agency.email,
+        username: agency.name,
+        created_at: agency.created_at
+      }));
+      
+      setAgencies(transformedAgencies);
     } catch (e) {
       Alert.alert('Error', e?.message || String(e));
     } finally {
@@ -60,7 +67,10 @@ export default function AdminAgencies({ onBack = () => { }, onOpenAgency }) {
   const renderItem = ({ item }) => (
     <TouchableOpacity
       style={styles.card}
-      onPress={() => onOpenAgency(item.id)}
+      onPress={() => {
+        // Navigate to agency details
+        Alert.alert('Agency Details', `Viewing details for ${item.username}`);
+      }}
       activeOpacity={0.7}
     >
       <View style={styles.cardIcon}>

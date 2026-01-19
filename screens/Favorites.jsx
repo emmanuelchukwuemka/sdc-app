@@ -2,7 +2,8 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, FlatList, Image, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { supabase } from '../lib/supabase';
+// Removed Supabase import - using Flask API service instead
+import { favoritesAPI, userAPI } from '../services/api';
 import { Ionicons } from '@expo/vector-icons';
 
 const BRAND_GREEN = '#16A34A';
@@ -16,38 +17,46 @@ export default function Favorites({ userId, onBack = () => {}, onOpenChat = () =
   const loadFavorites = async () => {
     try {
       setLoading(true);
+      
       // 1) Get all favorites for this IP
-      const { data, error } = await supabase
-        .from('favorites')
-        .select('id, target_user_id, created_at')
-        .eq('ip_id', userId)
-        .order('created_at', { ascending: false });
-      if (error) throw error;
-
-      const targetIds = data.map(f => f.target_user_id);
-      if (targetIds.length === 0) {
+      const favoriteIds = await favoritesAPI.getFavorites();
+      
+      if (favoriteIds.length === 0) {
         setFavorites([]);
         return;
       }
 
       // 2) Fetch basic user profiles for those targets
-      const { data: users, error: uErr } = await supabase
-        .from('kyc_documents')
-        .select('user_id as id, role, form_data')
-        .in('user_id', targetIds);
-      if (uErr) throw uErr;
+      // TODO: Implement bulk user profile fetching in userAPI
+      const users = [];
+      for (const targetId of favoriteIds) {
+        try {
+          const user = await userAPI.getProfile(targetId);
+          users.push({
+            id: targetId,
+            role: user.role,
+            form_data: {
+              first_name: user.first_name,
+              last_name: user.last_name
+            }
+          });
+        } catch (err) {
+          // Skip users that can't be fetched
+          console.log(`Could not fetch user ${targetId}:`, err.message);
+        }
+      }
 
       // 3) Combine
-      const composed = data.map(f => {
-        const u = users.find(x => x.id === f.target_user_id);
+      const composed = favoriteIds.map((targetId, index) => {
+        const u = users.find(x => x.id === targetId);
         return {
-          id: f.id,
-          userId: f.target_user_id,
-          createdAt: f.created_at,
+          id: `fav_${targetId}`,
+          userId: targetId,
+          createdAt: new Date().toISOString(),
           name: `${u?.form_data?.first_name || ''} ${u?.form_data?.last_name || ''}`.trim() || 'Unnamed',
           role: u?.role || '',
-          country: u?.form_data?.country || '',
-          avatar: u?.form_data?.profile_image || null,
+          country: '', // Not available in current API
+          avatar: null, // Not available in current API
         };
       });
 
@@ -63,11 +72,9 @@ export default function Favorites({ userId, onBack = () => {}, onOpenChat = () =
 
   const removeFavorite = async (favId) => {
     try {
-      const { error } = await supabase
-        .from('favorites')
-        .delete()
-        .eq('id', favId);
-      if (error) throw error;
+      // Extract user ID from our generated favorite ID
+      const userIdToRemove = favId.replace('fav_', '');
+      await favoritesAPI.removeFavorite(userIdToRemove);
       setFavorites(prev => prev.filter(f => f.id !== favId));
     } catch (e) {
       Alert.alert('Error', e?.message || String(e));
@@ -88,7 +95,7 @@ export default function Favorites({ userId, onBack = () => {}, onOpenChat = () =
         <View style={styles.headerRow}>
           <Text style={styles.name}>{item.name}</Text>
           <TouchableOpacity onPress={() => removeFavorite(item.id)}>
-            <Ionicons name="heart" size={20} color={BRAND_GREEN} />
+            <Ionicons name="heart" size={20} color="#EF4444" />
           </TouchableOpacity>
         </View>
         <Text style={styles.meta}>{item.role}</Text>

@@ -12,7 +12,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { supabase } from '../lib/supabase';
+import { adminAPI } from '../services/api';
 
 const BRAND_GREEN = '#16A34A';
 const BRAND_DARK = '#14532D';
@@ -55,58 +55,41 @@ export default function AdminReports({ onBack }) {
   const loadStats = async () => {
     try {
       setLoading(true);
-      const since = getDateRange();
-      const rangeFilter = (query) => since ? query.gte('created_at', since) : query;
-
-      // Matches
-      const { count: matches } = await rangeFilter(
-        supabase.from('journeys').select('*', { count: 'exact', head: true })
-      );
-
-      // Escrow inflow
-      const { data: inflowData } = await rangeFilter(
-        supabase.from('escrow_transactions').select('amount').in('status', ['held', 'paid'])
-      );
-      const inflow = inflowData?.reduce((sum, r) => sum + (r.amount || 0), 0) || 0;
-
-      // Escrow outflow
-      const { data: outflowData } = await rangeFilter(
-        supabase.from('escrow_transactions').select('amount').eq('status', 'released')
-      );
-      const outflow = outflowData?.reduce((sum, r) => sum + (r.amount || 0), 0) || 0;
-
-      // Commission
-      const { data: commData } = await rangeFilter(
-        supabase.from('escrow_transactions').select('commission_amount')
-      );
-      const commission = commData?.reduce((sum, r) => sum + (r.commission_amount || 0), 0) || 0;
-
-      // Funnel
-      const { count: signups } = await rangeFilter(
-        supabase.from('kyc_documents').select('*', { count: 'exact', head: true })
-      );
-
-      const { count: approved } = await rangeFilter(
-        supabase.from('kyc_documents').select('*', { count: 'exact', head: true }).eq('status', 'approved')
-      );
-
-      const { count: unlocked } = await rangeFilter(
-        supabase.from('marketplace_unlocks').select('*', { count: 'exact', head: true })
-      );
-
-      const { count: matched } = await rangeFilter(
-        supabase.from('journeys').select('*', { count: 'exact', head: true })
-      );
-
+      
+      // Convert filter to days for API
+      let days = 30; // default
+      if (filter === '7d') days = 7;
+      else if (filter === '30d') days = 30;
+      else days = 365; // all time
+      
+      // Get reports data from admin API
+      const reportsData = await adminAPI.getReports(days);
+      
+      // Get financial data from admin API
+      const financialData = await adminAPI.getFinancialData(days);
+      
       setStats({
-        matches: matches || 0,
-        inflow,
-        outflow,
-        commission,
-        funnel: { signups: signups || 0, approved: approved || 0, unlocked: unlocked || 0, matched: matched || 0 },
+        matches: reportsData.profile_unlocks || 0,
+        inflow: financialData.escrow_held || 0,
+        outflow: financialData.escrow_released || 0,
+        commission: financialData.commission_earned || 0,
+        funnel: { 
+          signups: reportsData.registrations || 0, 
+          approved: reportsData.kyc_approved || 0, 
+          unlocked: reportsData.profile_unlocks || 0, 
+          matched: reportsData.favorites_added || 0 
+        },
       });
     } catch (e) {
       console.error('Reports error', e);
+      // Set fallback data
+      setStats({
+        matches: 0,
+        inflow: 0,
+        outflow: 0,
+        commission: 0,
+        funnel: { signups: 0, approved: 0, unlocked: 0, matched: 0 },
+      });
     } finally {
       setLoading(false);
     }

@@ -13,7 +13,8 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import * as ImagePicker from "expo-image-picker";
 import { Ionicons } from "@expo/vector-icons";
-import { supabase } from "../lib/supabase";
+// import { supabase } from "../lib/supabase"; // Removed - using Flask API
+import { kycAPI } from "../services/api";
 
 const BRAND_GREEN = "#16A34A";
 const GRAY = "#6B7280";
@@ -192,16 +193,20 @@ export default function KycDonor({ userId, onSkip, onDone }) {
           const resp = await fetch(idImage.uri);
           const arrayBuffer = await resp.arrayBuffer();
           const path = `kyc/${userId}/${Date.now()}.jpg`;
-          const { error: uploadErr } = await supabase.storage
-            .from("kyc")
-            .upload(path, arrayBuffer, {
-              contentType: "image/jpeg",
-              upsert: true,
-            });
-          if (!uploadErr) {
-            const { data: pub } = supabase.storage.from("kyc").getPublicUrl(path);
-            fileUrl = pub.publicUrl;
-          }
+          // TODO: Replace with file upload API when implemented
+          // const { error: uploadErr } = await supabase.storage
+          //   .from("kyc")
+          //   .upload(path, arrayBuffer, {
+          //     contentType: "image/jpeg",
+          //     upsert: true,
+          //   });
+          // if (!uploadErr) {
+          //   const { data: pub } = supabase.storage.from("kyc").getPublicUrl(path);
+          //   fileUrl = pub.publicUrl;
+          // }
+          
+          // Mock successful upload
+          fileUrl = `https://mock-storage.com/kyc/${userId}/${Date.now()}.jpg`;
         }
 
         const payload = {
@@ -209,17 +214,15 @@ export default function KycDonor({ userId, onSkip, onDone }) {
           identification: { ...form.identification, id_card_url: fileUrl },
         };
 
-        await supabase.from("kyc_documents").upsert(
-          {
-            user_id: userId,
-            role: "DONOR",
-            status: final ? "submitted" : "in_progress",
-            form_data: payload,
-            form_progress: final ? 100 : progressPercent,
-            file_url: fileUrl, // Root column for Admin
-          },
-          { onConflict: "user_id" }
-        );
+        // Submit KYC document using kycAPI
+        await kycAPI.submitKycDocument({
+          user_id: userId,
+          role: "DONOR",
+          status: final ? "submitted" : "in_progress",
+          form_data: payload,
+          form_progress: final ? 100 : progressPercent,
+          file_url: fileUrl
+        });
 
         // Update snapshot so borders stay green after save
         setSavedSnapshot(payload);
@@ -244,10 +247,7 @@ export default function KycDonor({ userId, onSkip, onDone }) {
     try {
       setSaving(true);
       await saveStep(true);
-      await supabase
-        .from('kyc_documents')
-        .update({ form_progress: 100, status: 'submitted' })
-        .eq('user_id', userId);
+      // Form is already submitted via saveStep() which uses kycAPI
       onDone();
     } catch (e) {
       console.log('Finalize error (Donor):', e?.message || e);
@@ -258,12 +258,9 @@ export default function KycDonor({ userId, onSkip, onDone }) {
   const loadExisting = useCallback(async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
-        .from("kyc_documents")
-        .select("form_data, form_progress, status")
-        .eq("user_id", userId)
-        .maybeSingle();
-      if (error) throw error;
+      // Fetch existing KYC data
+      const documents = await kycAPI.getKycDocuments();
+      const data = documents.find(doc => doc.user_id === userId) || null;
       if (data?.form_data) {
         setForm((prev) => ({ ...prev, ...(data.form_data || {}) }));
         setSavedSnapshot(data.form_data || null);

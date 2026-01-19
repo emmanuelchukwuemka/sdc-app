@@ -16,7 +16,9 @@ import {
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { supabase } from '../lib/supabase';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+// Removed Supabase import - using Flask API service instead
+import { authAPI, kycAPI } from '../services/api';
 import AlertModal from '../components/AlertModal';
 import { validateEmailField } from '../utils/validation';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -98,14 +100,21 @@ export default function Register({ role, onSuccess, onBack }) {
   };
 
   const handleRegister = async () => {
-    const emailValidationError = validateEmailField(email);
+    const cleanFirstName = firstName.trim();
+    const cleanLastName = lastName.trim();
+    const cleanMiddleName = middleName.trim();
+    const cleanUsername = username.trim().toLowerCase();
+    const cleanEmail = email.trim().toLowerCase();
+    const cleanPassword = password.trim();
+
+    const emailValidationError = validateEmailField(cleanEmail);
     if (emailValidationError) {
       setEmailError(emailValidationError);
       return;
     }
     setEmailError('');
 
-    if (!firstName || !lastName || !username || !email || !password) {
+    if (!cleanFirstName || !cleanLastName || !cleanUsername || !cleanEmail || !cleanPassword) {
       showAlert('Missing Information', 'Please fill in all required fields.', 'error');
       return;
     }
@@ -113,58 +122,52 @@ export default function Register({ role, onSuccess, onBack }) {
     try {
       setLoading(true);
 
-      const { data: existing, error: checkErr } = await supabase
-        .from('kyc_documents')
-        .select('id')
-        .or(`form_data->>email.eq.${email},form_data->>username.eq.${username}`)
-        .limit(1);
+      // Prepare registration data
+      const registrationData = {
+        email: cleanEmail,
+        password: cleanPassword,
+        role: role,
+        first_name: cleanFirstName,
+        last_name: cleanLastName,
+        form_data: {
+          first_name: cleanFirstName,
+          middle_name: cleanMiddleName,
+          last_name: cleanLastName,
+          username: cleanUsername,
+          email: cleanEmail,
+          role: role
+        }
+      };
 
-      if (existing && existing.length > 0) {
-        throw new Error('Email or username already registered.');
-      }
-
-      const { data: authData, error: authErr } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: {
-            first_name: firstName,
-            middle_name: middleName,
-            last_name: lastName,
-            username,
-            role,
-          },
-        },
-      });
-
-      if (authErr) throw authErr;
-
-      const { error: profileError } = await supabase
-        .from('kyc_documents')
-        .insert({
-          user_id: authData.user.id,
-          role: role,
-          status: 'in_progress',
-          form_data: {
-            first_name: firstName,
-            middle_name: middleName,
-            last_name: lastName,
-            username: username,
-            email: email,
+      // Register user via Flask API
+      const registerResponse = await authAPI.register(registrationData);
+      
+      if (registerResponse.access_token) {
+        // Store the auth token
+        await AsyncStorage.setItem('authToken', registerResponse.access_token);
+        
+        // Create initial KYC document
+        try {
+          await kycAPI.submitDocument({
+            form_data: registrationData.form_data,
+            form_progress: 0,
+            status: 'in_progress'
+          });
+        } catch (kycError) {
+          console.warn('KYC document creation warning:', kycError);
+        }
+        
+        // Call success callback with user data
+        if (onSuccess) {
+          onSuccess({
+            id: registerResponse.user_id,
+            email: cleanEmail,
             role: role
-          },
-          form_progress: 0
-        });
-
-      if (profileError) console.error('Profile creation warning:', profileError);
-
-      const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
-        email,
-        password
-      });
-
-      if (signInError) throw signInError;
-      if (onSuccess) onSuccess(signInData.user);
+          });
+        }
+      } else {
+        throw new Error('Registration failed - no access token received');
+      }
 
     } catch (err) {
       showAlert('Registration Failed', err.message || 'Please try again.', 'error');

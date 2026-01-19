@@ -4,7 +4,7 @@ import { View, Text, StyleSheet, FlatList, TextInput, TouchableOpacity, Keyboard
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as DocumentPicker from 'expo-document-picker';
-import { supabase } from '../lib/supabase';
+import { messagesAPI } from '../services/api';
 
 const BRAND_GREEN = '#16A34A';
 const ACCENT_WHITE = '#FFFFFF';
@@ -39,12 +39,7 @@ export default function Chat({
     (async () => {
       try {
         setLoading(true);
-        const { data, error } = await supabase
-          .from('messages')
-          .select('*')
-          .eq('conversation_id', conversationId)
-          .order('created_at', { ascending: true });
-        if (error) throw error;
+        const data = await messagesAPI.getMessages(conversationId);
         if (!on) return;
         setMessages(data || []);
         setTimeout(() => listRef.current?.scrollToEnd({ animated: false }), 50);
@@ -57,25 +52,8 @@ export default function Chat({
     return () => { on = false; };
   }, [conversationId]);
 
-  // Realtime subscription for new messages
-  useEffect(() => {
-    const chan = supabase
-      .channel(`realtime:messages:${conversationId}`)
-      .on('postgres_changes', {
-        event: 'INSERT',
-        schema: 'public',
-        table: 'messages',
-        filter: `conversation_id=eq.${conversationId}`,
-      }, (payload) => {
-        setMessages((prev) => [...prev, payload.new]);
-        requestAnimationFrame(() => listRef.current?.scrollToEnd({ animated: true }));
-      })
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(chan);
-    };
-  }, [conversationId]);
+  // TODO: Add WebSocket support for realtime messaging
+  // For now, polling can be implemented if needed
 
   const send = async () => {
     const trimmed = text.trim();
@@ -83,12 +61,14 @@ export default function Chat({
     try {
       setSending(true);
       setText('');
-      const { error } = await supabase.from('messages').insert({
+      const messageData = {
         conversation_id: conversationId,
-        sender_user_id: userId,
         content: trimmed,
-      });
-      if (error) throw error;
+      };
+      const newMessage = await messagesAPI.send(messageData);
+      // Add the new message to the local state
+      setMessages(prev => [...prev, newMessage]);
+      requestAnimationFrame(() => listRef.current?.scrollToEnd({ animated: true }));
     } catch (e) {
       console.log('send error', e?.message || e);
       setText(trimmed); // restore on failure
@@ -97,66 +77,10 @@ export default function Chat({
     }
   };
 
-  // Pick a file/image, upload to storage, then insert a message with attachment_url/type (+ optional text)
+  // TODO: Add file attachment support
   const attachAndSend = async () => {
-    try {
-      if (uploading) return;
-      setUploading(true);
-
-      const result = await DocumentPicker.getDocumentAsync({
-        multiple: false,
-        type: ['image/*', 'application/pdf', 'application/*', 'text/*', 'video/*'],
-        copyToCacheDirectory: true,
-      });
-
-      if (result.canceled) {
-        setUploading(false);
-        return;
-      }
-
-      const file = result.assets?.[0];
-      if (!file) {
-        setUploading(false);
-        return;
-      }
-
-      const uri = file.uri;
-      const mimeType = file.mimeType || 'application/octet-stream';
-      const originalName = (file.name || uri.split('/').pop() || 'upload').replace(/[^a-zA-Z0-9.\-_]/g, '_');
-      const path = `${conversationId}/${Date.now()}-${originalName}`;
-
-      // Load file bytes
-      const res = await fetch(uri);
-      const arrayBuffer = await res.arrayBuffer();
-
-      // Upload to Supabase Storage (public bucket 'chat')
-      const { error: upErr } = await supabase.storage.from('chat').upload(path, arrayBuffer, {
-        contentType: mimeType,
-        upsert: false,
-      });
-      if (upErr) throw upErr;
-
-      // Get public URL
-      const { data: pub } = supabase.storage.from('chat').getPublicUrl(path);
-      const publicUrl = pub?.publicUrl;
-
-      // Insert message row (include any typed text too)
-      const trimmed = text.trim();
-      setText('');
-      const { error: insErr } = await supabase.from('messages').insert({
-        conversation_id: conversationId,
-        sender_user_id: userId,
-        content: trimmed || '', // allow empty content with attachment
-        attachment_url: publicUrl,
-        attachment_type: mimeType,
-      });
-      if (insErr) throw insErr;
-    } catch (e) {
-      console.log('attach error', e?.message || e);
-      Alert.alert('Upload failed', e?.message || String(e));
-    } finally {
-      setUploading(false);
-    }
+    Alert.alert('Feature Coming Soon', 'File attachments will be available in the next update.');
+    // Placeholder for future file upload implementation
   };
 
   const openUrl = async (url) => {

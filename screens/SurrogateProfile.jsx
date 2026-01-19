@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { supabase } from '../lib/supabase';
+// import { supabase } from '../lib/supabase'; // Removed - using Flask API
 import * as ImagePicker from 'expo-image-picker';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as ImageManipulator from 'expo-image-manipulator';
