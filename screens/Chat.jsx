@@ -4,7 +4,7 @@ import { View, Text, StyleSheet, FlatList, TextInput, TouchableOpacity, Keyboard
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as DocumentPicker from 'expo-document-picker';
-import { messagesAPI } from '../services/api';
+import { messagesAPI, uploadAPI } from '../services/api';
 
 const BRAND_GREEN = '#16A34A';
 const ACCENT_WHITE = '#FFFFFF';
@@ -77,10 +77,63 @@ export default function Chat({
     }
   };
 
-  // TODO: Add file attachment support
+  // File attachment functionality
   const attachAndSend = async () => {
-    Alert.alert('Feature Coming Soon', 'File attachments will be available in the next update.');
-    // Placeholder for future file upload implementation
+    try {
+      if (uploading) return;
+      setUploading(true);
+
+      // Open document picker
+      const result = await DocumentPicker.getDocumentAsync({
+        multiple: false,
+        type: ['image/*', 'application/pdf', 'application/*', 'text/*', 'video/*'],
+        copyToCacheDirectory: true,
+      });
+
+      if (result.canceled) {
+        setUploading(false);
+        return;
+      }
+
+      const file = result.assets?.[0];
+      if (!file) {
+        setUploading(false);
+        return;
+      }
+
+      // Upload file
+      const uploadResult = await uploadAPI.uploadFile(
+        {
+          uri: file.uri,
+          name: file.name || 'upload',
+          type: file.mimeType || 'application/octet-stream',
+        },
+        conversationId
+      );
+
+      // Send message with attachment
+      const trimmed = text.trim();
+      setText('');
+      
+      const messageData = {
+        conversation_id: conversationId,
+        content: trimmed || '', // Allow empty content with attachment
+        attachment_url: uploadResult.url,
+        attachment_type: file.mimeType || 'file',
+      };
+      
+      const newMessage = await messagesAPI.send(messageData);
+      
+      // Add to local state
+      setMessages(prev => [...prev, newMessage]);
+      requestAnimationFrame(() => listRef.current?.scrollToEnd({ animated: true }));
+      
+    } catch (e) {
+      console.log('attach error', e?.message || e);
+      Alert.alert('Upload failed', e?.message || String(e));
+    } finally {
+      setUploading(false);
+    }
   };
 
   const openUrl = async (url) => {

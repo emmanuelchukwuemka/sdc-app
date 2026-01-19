@@ -10,6 +10,7 @@ from .admin_controller import get_reports, get_financial_data, get_contracts, ge
 from .wallet_controller import get_transactions, get_balance
 from .notification_controller import get_notifications, mark_as_read
 from .messages_controller import get_messages, send_message, initialize_mock_messages
+from .upload_controller import upload_file, serve_file
 
 # Auth Blueprint
 auth_bp = Blueprint('auth', __name__)
@@ -70,3 +71,8 @@ notification_bp.add_url_rule('/<notification_id>/read', view_func=mark_as_read, 
 messages_bp = Blueprint('messages', __name__)
 messages_bp.add_url_rule('/<conversation_id>', view_func=get_messages, methods=['GET'])
 messages_bp.add_url_rule('', view_func=send_message, methods=['POST'])
+
+# Upload Blueprint
+upload_bp = Blueprint('upload', __name__)
+upload_bp.add_url_rule('/upload', view_func=upload_file, methods=['POST'])
+upload_bp.add_url_rule('/uploads/<conversation_id>/<filename>', view_func=serve_file, methods=['GET'])

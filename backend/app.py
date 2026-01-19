@@ -22,7 +22,7 @@ jwt = JWTManager(app)
 socketio = SocketIO(app, cors_allowed_origins="*")
 
 # Import and register blueprints
-from src.controllers import auth_bp, user_bp, kyc_bp, marketplace_bp, agency_bp, favorites_bp, badge_bp, admin_bp, wallet_bp, notification_bp, messages_bp
+from src.controllers import auth_bp, user_bp, kyc_bp, marketplace_bp, agency_bp, favorites_bp, badge_bp, admin_bp, wallet_bp, notification_bp, messages_bp, upload_bp
 from src.controllers.messages_controller import initialize_mock_messages
 
 app.register_blueprint(auth_bp, url_prefix='/api/auth')
@@ -36,6 +36,7 @@ app.register_blueprint(admin_bp, url_prefix='/api/admin')
 app.register_blueprint(wallet_bp, url_prefix='/api/wallet')
 app.register_blueprint(notification_bp, url_prefix='/api/notifications')
 app.register_blueprint(messages_bp, url_prefix='/api/messages')
+app.register_blueprint(upload_bp, url_prefix='/api')
 
 # Initialize mock data
 initialize_mock_messages()
