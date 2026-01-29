@@ -6,31 +6,33 @@ from datetime import datetime
 def get_notifications():
     user_id = get_jwt_identity()
     
-    # Mock notifications - in production this would query actual notifications table
-    mock_notifications = [
-        {
-            "id": "1",
-            "user_id": user_id,
-            "title": "KYC Approved",
-            "body": "Your KYC verification has been approved. You can now access all platform features.",
-            "severity": "info",
-            "status": "unread",
-            "created_at": datetime.utcnow().isoformat()
-        },
-        {
-            "id": "2",
-            "user_id": user_id,
-            "title": "New Message",
-            "body": "You have a new message from a potential match.",
-            "severity": "info",
-            "status": "unread",
-            "created_at": datetime.utcnow().isoformat()
-        }
-    ]
+    # Query actual notifications from the database
+    notifications = Notification.query.filter_by(user_id=user_id).order_by(Notification.created_at.desc()).all()
     
-    return jsonify(mock_notifications), 200
+    notifications_list = []
+    for notification in notifications:
+        notifications_list.append({
+            "id": notification.id,
+            "user_id": notification.user_id,
+            "title": notification.title,
+            "body": notification.body,
+            "severity": notification.severity,
+            "status": notification.status,
+            "created_at": notification.created_at.isoformat() if notification.created_at else None
+        })
+    
+    return jsonify(notifications_list), 200
 
 @jwt_required()
 def mark_as_read(notification_id):
-    # In production, this would update the notification status in database
+    user_id = get_jwt_identity()
+    
+    # Update notification status in database
+    notification = Notification.query.filter_by(id=notification_id, user_id=user_id).first()
+    if not notification:
+        return jsonify({"msg": "Notification not found"}), 404
+    
+    notification.status = 'read'
+    db.session.commit()
+    
     return jsonify({"msg": "Notification marked as read"}), 200

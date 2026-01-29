@@ -147,3 +147,38 @@ class CommissionSetting(db.Model):
     category = db.Column(db.String(50), nullable=False, unique=True)
     percent = db.Column(db.Numeric(5, 2), nullable=False)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class Message(db.Model):
+    __tablename__ = 'messages'
+    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    conversation_id = db.Column(db.String(36), nullable=False)
+    sender_user_id = db.Column(db.String(36), nullable=False)
+    content = db.Column(db.Text)
+    attachment_url = db.Column(db.Text)
+    attachment_type = db.Column(db.String(50))
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class WalletTransaction(db.Model):
+    __tablename__ = 'wallet_transactions'
+    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id = db.Column(db.String(36), nullable=False)
+    amount = db.Column(db.Numeric(10, 2), nullable=False)
+    currency = db.Column(db.String(10), default='NGN')
+    type = db.Column(db.String(50), nullable=False)
+    status = db.Column(db.String(50), default='pending')
+    reference = db.Column(db.String(255), unique=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+
+class Notification(db.Model):
+    __tablename__ = 'notifications'
+    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id = db.Column(db.String(36), nullable=False)
+    title = db.Column(db.String(255), nullable=False)
+    body = db.Column(db.Text, nullable=False)
+    severity = db.Column(db.String(20), default='info')  # info, warning, error
+    status = db.Column(db.String(20), default='unread')  # unread, read
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)

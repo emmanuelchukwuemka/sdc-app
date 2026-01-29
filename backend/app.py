@@ -38,8 +38,8 @@ app.register_blueprint(notification_bp, url_prefix='/api/notifications')
 app.register_blueprint(messages_bp, url_prefix='/api/messages')
 app.register_blueprint(upload_bp, url_prefix='/api')
 
-# Initialize mock data
-initialize_mock_messages()
+# Initialize any required data
+# initialize_mock_messages()  # Removed as we're using real database models
 
 # WebSocket event handlers
 @socketio.on('connect')

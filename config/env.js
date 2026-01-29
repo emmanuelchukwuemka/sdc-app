@@ -2,7 +2,7 @@
 // Environment configuration for the mobile app
 
 // Import the dynamic configuration
-import { useLocalhost, useMobileDev } from '../services/api-config';
+import { useLocalhost, useMobileDev, useProduction } from '../services/api-config';
 
 // Auto-configure based on platform
 const autoConfigure = () => {
@@ -12,9 +12,9 @@ const autoConfigure = () => {
     return;
   }
   
-  // For mobile development, use the computer's IP address
-  // This ensures both web and mobile can connect
-  useMobileDev(); // Default to mobile IP for universal compatibility
+  // For mobile development, use the production HTTPS endpoint
+  // This ensures both web and mobile connect to the secure production API
+  useProduction(); // Default to production HTTPS for universal compatibility
 };
 
 // Run auto-configuration

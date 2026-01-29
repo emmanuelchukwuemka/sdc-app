@@ -7,40 +7,48 @@ from ..models import db
 def get_transactions():
     user_id = get_jwt_identity()
     
-    # Mock wallet transactions - in production this would query actual wallet transaction table
-    mock_transactions = [
-        {
-            "id": "1",
-            "user_id": user_id,
-            "amount": 50000,
-            "currency": "NGN",
-            "type": "surrogate_payment",
-            "status": "held",
-            "reference": "ESCROW_001",
-            "created_at": datetime.utcnow().isoformat()
-        },
-        {
-            "id": "2",
-            "user_id": user_id,
-            "amount": 2500,
-            "currency": "NGN",
-            "type": "referral_bonus",
-            "status": "posted",
-            "reference": "REF_001",
-            "created_at": datetime.utcnow().isoformat()
-        }
-    ]
+    # Query actual wallet transactions from the database
+    transactions = WalletTransaction.query.filter_by(user_id=user_id).order_by(WalletTransaction.created_at.desc()).all()
     
-    return jsonify(mock_transactions), 200
+    transactions_list = []
+    for transaction in transactions:
+        transactions_list.append({
+            "id": transaction.id,
+            "user_id": transaction.user_id,
+            "amount": float(transaction.amount),
+            "currency": transaction.currency,
+            "type": transaction.type,
+            "status": transaction.status,
+            "reference": transaction.reference,
+            "created_at": transaction.created_at.isoformat() if transaction.created_at else None
+        })
+    
+    return jsonify(transactions_list), 200
 
 @jwt_required()
 def get_balance():
     user_id = get_jwt_identity()
     
-    # Mock wallet balance - in production this would query actual wallet balance
+    # Calculate actual wallet balance from database
+    # Sum all completed transactions (positive for credits, negative for debits)
+    completed_transactions = WalletTransaction.query.filter_by(
+        user_id=user_id,
+        status='completed'
+    ).all()
+    
+    balance = sum(float(t.amount) if t.type in ['credit', 'referral_bonus', 'payment'] else -float(t.amount) 
+              for t in completed_transactions)
+    
+    # Calculate referral balance separately
+    referral_transactions = WalletTransaction.query.filter_by(
+        user_id=user_id,
+        type='referral_bonus'
+    ).all()
+    referral_balance = sum(float(t.amount) for t in referral_transactions)
+    
     return jsonify({
-        "balance": 0,
-        "referral_balance": 2500,
+        "balance": balance,
+        "referral_balance": referral_balance,
         "currency": "NGN",
         "user_id": user_id
     }), 200

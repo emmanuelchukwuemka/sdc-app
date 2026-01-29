@@ -1,7 +1,7 @@
 // services/api-config.js
 // Utility for configuring API endpoints at runtime
 
-let currentApiUrl = 'http://10.195.159.131:5000'; // Your computer's IP address for mobile
+let currentApiUrl = 'https://surrogateanddonorconnect.com'; // Production HTTPS endpoint
 let currentApiBasePath = '/api';
 
 export const getApiBaseUrl = () => {
@@ -16,18 +16,26 @@ export const setApiConfig = (apiUrl, apiBasePath = '/api') => {
 
 // Predefined configurations
 export const CONFIGURATIONS = {
+  PRODUCTION: {
+    url: 'https://surrogateanddonorconnect.com', // Production HTTPS endpoint
+    basePath: '/api'
+  },
   LOCALHOST: {
-    url: 'http://10.195.159.131:5000', // Use mobile IP for both web and mobile
+    url: 'http://72.62.4.119:5000', // Remote server IP
     basePath: '/api'
   },
   MOBILE_DEV: {
-    url: 'http://10.195.159.131:5000', // Your computer's IP
+    url: 'https://surrogateanddonorconnect.com', // Production HTTPS endpoint
     basePath: '/api'
   }
 };
 
 export const useLocalhost = () => {
   setApiConfig(CONFIGURATIONS.LOCALHOST.url, CONFIGURATIONS.LOCALHOST.basePath);
+};
+
+export const useProduction = () => {
+  setApiConfig(CONFIGURATIONS.PRODUCTION.url, CONFIGURATIONS.PRODUCTION.basePath);
 };
 
 export const useMobileDev = () => {
