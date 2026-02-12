@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-// import { supabase } from '../lib/supabase'; // Removed - using Flask API
+import { agencyAPI } from '../services/api';
 import { LinearGradient } from 'expo-linear-gradient';
 
 const BRAND_GREEN = '#16A34A';
@@ -36,29 +36,11 @@ export default function AgencyDashboard({ agencyId, onBack = () => { } }) {
     try {
       setLoading(true);
 
-      // Roster
-      const { data: rosterData, error: rosterErr } = await supabase
-        .from('kyc_documents')
-        .select('user_id as id, role, form_data->>username as username, form_data->>email as email, status')
-        .eq('agency_id', agencyId)
-        .in('role', ['SURROGATE', 'DONOR']);
-      if (rosterErr) throw rosterErr;
-
-      // Subscription
-      const { data: subData, error: subErr } = await supabase
-        .from('subscriptions')
-        .select('plan, period, status, renewal_date')
-        .eq('user_id', agencyId)
-        .single();
-      if (subErr && subErr.code !== 'PGRST116') throw subErr;
-
-      // Referral Rewards
-      const { data: walletData, error: walletErr } = await supabase
-        .from('wallets')
-        .select('balance, referral_balance')
-        .eq('user_id', agencyId)
-        .single();
-      if (walletErr && walletErr.code !== 'PGRST116') throw walletErr;
+      const [rosterData, subData, walletData] = await Promise.all([
+        agencyAPI.getRoster(agencyId),
+        agencyAPI.getSubscription(agencyId),
+        agencyAPI.getWallet(agencyId)
+      ]);
 
       setRoster(rosterData || []);
       setSubscription(subData || null);
@@ -87,11 +69,7 @@ export default function AgencyDashboard({ agencyId, onBack = () => { } }) {
   const toggleMemberStatus = async (item) => {
     try {
       const newStatus = item.status === 'active' ? 'suspended' : 'active';
-      const { error } = await supabase
-        .from('kyc_documents')
-        .update({ status: newStatus })
-        .eq('user_id', item.id);
-      if (error) throw error;
+      await agencyAPI.updateMemberStatus(item.id, newStatus);
       loadData();
     } catch (e) {
       console.error('Toggle status error', e);

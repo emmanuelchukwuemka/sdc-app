@@ -4,9 +4,11 @@ Database initialization script
 """
 import sys
 import os
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'src'))
 
-from app import app  # Import the app instance directly
+# Add backend folder to path
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+from app import app  # Import from root app.py
 from src.models import db
 
 def init_db():

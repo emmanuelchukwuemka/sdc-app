@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-// import { supabase } from '../lib/supabase'; // Removed - using Flask API
+import { kycAPI } from '../services/api';
 
 const BRAND_GREEN = '#16A34A';
 const ACCENT_WHITE = '#FFFFFF';
@@ -25,13 +25,14 @@ export default function KycUpload({ userId, role = 'SURROGATE', onNext, onBack }
   // Load saved progress if exists
   useEffect(() => {
     const fetchData = async () => {
-      const { data, error } = await supabase
-        .from('kyc_documents')
-        .select('form_data, progress')
-        .eq('user_id', userId)
-        .maybeSingle();
-      if (data?.form_data) {
-        setFormData(data.form_data);
+      try {
+        const documents = await kycAPI.getKycDocuments();
+        const data = documents.find(doc => doc.user_id === userId) || null;
+        if (data?.form_data) {
+          setFormData(data.form_data);
+        }
+      } catch (e) {
+        console.log('KycUpload load error:', e);
       }
     };
     fetchData();
@@ -108,16 +109,13 @@ export default function KycUpload({ userId, role = 'SURROGATE', onNext, onBack }
       setSaving(true);
       const progress = final ? 100 : Math.round(((step + 1) / steps.length) * 100);
 
-      const { error } = await supabase.from('kyc_documents').upsert(
-        {
-          user_id: userId,
-          form_data: formData,
-          progress,
-          status: final ? 'submitted' : 'in_progress',
-        },
-        { onConflict: 'user_id' }
-      );
-      if (error) throw error;
+      await kycAPI.submitKycDocument({
+        user_id: userId,
+        role: role,
+        form_data: formData,
+        form_progress: progress,
+        status: final ? 'submitted' : 'in_progress',
+      });
 
       if (final) {
         onNext(); // go to dashboard

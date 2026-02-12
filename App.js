@@ -363,17 +363,10 @@ export default function App() {
           onOpenReports={() => setAdminView('reports')}
           onOpenAgencies={() => setAdminView('agencies')}
           onLogout={async () => {
-            try {
-              // Skip actual logout since we're bypassing auth for non-admin
-              // await supabase.auth.signOut();
-            } catch (e) {
-              console.log('Logout error', e?.message || e);
-            } finally {
-              // Reset to null to show role selection
-              setUser(null);
-              setRole(null);
-              // Logout handled by state management
-            }
+            // Reset to null to show role selection
+            setUser(null);
+            setRole(null);
+            // Logout handled by state management
           }}
         />
       </SafeAreaProvider>
@@ -492,21 +485,11 @@ export default function App() {
           <SurrogateDrawerNavigator
             userId={currentUserId}
             onLogout={async () => {
-              try {
-                // Skip actual logout since we're bypassing auth for non-admin
-                // await supabase.auth.signOut();
-              } catch (e) {
-                console.log('Logout error', e?.message || e);
-              } finally {
-                // Reset to null to show role selection
-                setUser(null);
-                setRole(null);
-                setKycApproved(false); // Reset KYC too if they logout
-                // Only sign out if it's a real authenticated user (admin)
-                if (user?.role === 'ADMIN') {
-                  await supabase.auth.signOut();
-                }
-              }
+              // Reset to null to show role selection
+              setUser(null);
+              setRole(null);
+              setKycApproved(false); // Reset KYC too if they logout
+              // Logout handled by state management
             }}
           />
         </NavigationContainer>
@@ -522,20 +505,10 @@ export default function App() {
           <IpDrawerNavigator
             userId={currentUserId}
             onLogout={async () => {
-              try {
-                // Skip actual logout since we're bypassing auth for non-admin
-                // await supabase.auth.signOut();
-              } catch (e) {
-                console.log('Logout error', e?.message || e);
-              } finally {
-                // Reset to null to show role selection
-                setUser(null);
-                setRole(null);
-                // Only sign out if it's a real authenticated user (admin)
-                if (user?.role === 'ADMIN') {
-                  await supabase.auth.signOut();
-                }
-              }
+              // Reset to null to show role selection
+              setUser(null);
+              setRole(null);
+              // Logout handled by state management
             }}
           />
         </NavigationContainer>

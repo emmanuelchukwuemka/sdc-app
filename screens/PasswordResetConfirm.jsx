@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
-// import { supabase } from '../lib/supabase'; // Removed - using Flask API
+import { authAPI } from '../services/api';
 import AlertModal from '../components/AlertModal';
 
 // Constants
@@ -23,16 +23,16 @@ const GRAY = '#9CA3AF';
 
 export default function PasswordResetConfirm({ route }) {
   const navigation = useNavigation();
-  
+
   // Extract access token from route params (from deep link)
   const accessToken = route?.params?.access_token;
-  
+
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [passwordError, setPasswordError] = useState('');
   const [confirmError, setConfirmError] = useState('');
   const [loading, setLoading] = useState(false);
-  
+
   // Alert state
   const [alertVisible, setAlertVisible] = useState(false);
   const [alertTitle, setAlertTitle] = useState('');
@@ -99,13 +99,8 @@ export default function PasswordResetConfirm({ route }) {
     try {
       setLoading(true);
 
-      // Update password using Supabase Auth
-      // Skip for demo mode
-      // const { error } = await supabase.auth.updateUser({
-      //   password: newPassword
-      // });
-      // 
-      // if (error) throw error;
+      // Update password via Flask API
+      await authAPI.updatePassword(newPassword);
 
       // Success
       showAlert(

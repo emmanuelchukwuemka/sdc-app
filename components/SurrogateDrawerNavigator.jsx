@@ -2,7 +2,6 @@
 import React, { useEffect, useState } from 'react';
 import { createDrawerNavigator } from '@react-navigation/drawer';
 import { Ionicons } from '@expo/vector-icons';
-// import { supabase } from '../lib/supabase'; // Removed - using Flask API
 import CustomDrawerContent from './CustomDrawerContent';
 import SurrogateNavigator from './SurrogateNavigator'; // bottom tabs (dashboard)
 import SurrogateKyc from '../screens/KycSurrogate';

@@ -1,7 +1,7 @@
 from flask import jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from datetime import datetime
-from ..models import db
+from ..models import db, WalletTransaction
 
 @jwt_required()
 def get_transactions():

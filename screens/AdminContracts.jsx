@@ -96,27 +96,18 @@ export default function AdminContracts({ onBack = () => { } }) {
       try {
         setLoading(true);
         // Get contract templates from admin API
-        const contracts = await adminAPI.getContracts();
+        const data = await adminAPI.getContractTemplates();
         if (!on) return;
-        setTemplates(contracts || []);
+        setTemplates(data || []);
       } catch (e) {
         console.log('load templates error', e?.message || e);
-        // Set fallback data
+        // Fallback for UI testing
         setTemplates([
           {
             id: '1',
-            title: 'Standard Surrogacy Agreement',
-            type: 'surrogacy',
-            version: '2.1',
-            status: 'active',
-            created_at: new Date().toISOString()
-          },
-          {
-            id: '2',
-            title: 'Egg Donation Agreement',
-            type: 'donation',
-            version: '1.5',
-            status: 'active',
+            name: 'Standard Surrogacy Agreement',
+            body: 'This is a test body for {{surrogate_name}}.',
+            variables: ['surrogate_name'],
             created_at: new Date().toISOString()
           }
         ]);
@@ -159,12 +150,7 @@ export default function AdminContracts({ onBack = () => { } }) {
       if (!name.trim()) return Alert.alert('Missing Name', 'Please enter a name for this template.');
       if (!body.trim()) return Alert.alert('Missing Content', 'Please pick a template file first.');
 
-      const { data, error } = await supabase
-        .from('contract_templates')
-        .insert({ name: name.trim(), body, variables: vars })
-        .select('*')
-        .single();
-      if (error) throw error;
+      const data = await adminAPI.addContractTemplate({ name: name.trim(), body, variables: vars });
 
       setTemplates((prev) => [data, ...prev]);
       setSelected(data);

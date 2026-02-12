@@ -15,7 +15,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
-// import { supabase } from '../lib/supabase'; // Removed - using Flask API
+import { kycAPI, uploadAPI } from '../services/api';
 import { LinearGradient } from 'expo-linear-gradient';
 
 const BRAND_GREEN = '#16A34A';
@@ -167,17 +167,14 @@ export default function KycAgency({
 
     try {
       const asset = res.assets[0];
-      const resp = await fetch(asset.uri);
-      const arrayBuffer = await resp.arrayBuffer();
-      const path = `kyc/${userId}/${Date.now()}_${Math.random().toString(36).slice(2)}.jpg`;
+      const fileToUpload = {
+        uri: asset.uri,
+        type: asset.type || 'image/jpeg',
+        name: asset.fileName || `kyc_agency_${userId}_${Date.now()}.jpg`,
+      };
 
-      const up = await supabase.storage.from('kyc').upload(path, arrayBuffer, {
-        contentType: 'image/jpeg',
-      });
-      if (up.error) throw up.error;
-
-      const { data: pub } = supabase.storage.from('kyc').getPublicUrl(path);
-      const publicUrl = pub?.publicUrl || '';
+      const uploadResp = await uploadAPI.uploadFile(fileToUpload, `kyc/${userId}`);
+      const publicUrl = uploadResp.url;
 
       setForm((prev) => {
         const next = JSON.parse(JSON.stringify(prev));
@@ -204,15 +201,14 @@ export default function KycAgency({
         setSaving(true);
         const status = (finalize || progressPercent === 100) ? 'submitted' : 'in_progress';
 
-        const { error } = await supabase.from('kyc_documents').upsert({
+        await kycAPI.submitKycDocument({
           user_id: userId,
           role: 'AGENCY',
           status,
           form_data: form,
           form_progress: progressPercent,
-        }, { onConflict: 'user_id' });
+        });
 
-        if (error) throw error;
         if (finalize || progressPercent === 100) onDone();
       } catch (e) {
         console.error('KYC save error:', e.message);
@@ -226,17 +222,10 @@ export default function KycAgency({
   const loadExisting = useCallback(async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
-        .from('kyc_documents')
-        .select('form_data, form_progress, status')
-        .eq('user_id', userId)
-        .maybeSingle();
-      if (error) throw error;
+      const documents = await kycAPI.getKycDocuments();
+      const data = documents.find(doc => doc.user_id === userId) || null;
       if (data?.form_data) {
         setForm(prev => ({ ...prev, ...data.form_data }));
-      }
-      if (data?.status === 'approved' || data?.status === 'submitted') {
-        // Option to skip if already done, but let's allow editing for now
       }
     } catch (e) {
       console.error('Loader error', e.message);

@@ -1,13 +1,48 @@
 // screens/DonorDashboard.jsx
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { authAPI } from '../services/api';
 
 const BRAND_GREEN = '#16A34A';
 const LIGHT_BG = '#F8FAF9';
 
 export default function DonorDashboard({ route, navigation }) {
   const { userId } = route.params || {};
+  const [user, setUser] = useState(null);
+
+  useEffect(() => {
+    const fetchUser = async () => {
+      try {
+        // First try to get user data from AsyncStorage
+        const storedUserData = await AsyncStorage.getItem('userData');
+        if (storedUserData) {
+          const userData = JSON.parse(storedUserData);
+          setUser(userData);
+          return;
+        }
+
+        // Fallback to API call if no stored data
+        const currentUser = await authAPI.getCurrentUser();
+        if (currentUser) {
+          const userData = {
+            first_name: currentUser.first_name || '',
+            last_name: currentUser.last_name || '',
+            role: currentUser.role,
+            email: currentUser.email,
+            id: currentUser.id
+          };
+          setUser(userData);
+          // Store for future use
+          await AsyncStorage.setItem('userData', JSON.stringify(userData));
+        }
+      } catch (error) {
+        console.log('Failed to fetch user data:', error);
+      }
+    };
+    fetchUser();
+  }, [userId]);
 
   // Set header options for logout button
   React.useLayoutEffect(() => {
@@ -30,11 +65,17 @@ export default function DonorDashboard({ route, navigation }) {
         {/* Hero Card */}
         <View style={styles.heroCard}>
           <View>
-            <Text style={styles.heroWelcome}>Welcome back,</Text>
-            <Text style={styles.heroRole}>Donor</Text>
+            <Text style={styles.heroWelcome}>
+              Welcome back, {user?.first_name || 'Donor'}!
+            </Text>
+            <Text style={styles.heroRole}>
+              {user?.email || 'No email provided'}
+            </Text>
           </View>
           <View style={styles.idChip}>
-            <Text style={styles.idChipText}>ID: {userId}</Text>
+            <Text style={styles.idChipText}>
+              Role: {user?.role || 'Donor'}
+            </Text>
           </View>
         </View>
 

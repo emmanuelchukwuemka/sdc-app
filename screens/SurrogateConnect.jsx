@@ -9,7 +9,7 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-// import { supabase } from '../lib/supabase'; // Removed - using Flask API
+import { connectionsAPI } from '../services/api';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 
@@ -27,12 +27,7 @@ export default function SurrogateConnect({ route, userId: userIdProp, navigation
     (async () => {
       setLoading(true);
       try {
-        const { data, error } = await supabase
-          .from('surrogate_connections')
-          .select('id, parent_name, amount_paid, created_at, status')
-          .eq('surrogate_id', userId)
-          .order('created_at', { ascending: false });
-        if (error) throw error;
+        const data = await connectionsAPI.getConnections();
         setConnections(data || []);
       } catch (e) {
         console.log('Error loading connections:', e.message);

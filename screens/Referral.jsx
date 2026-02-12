@@ -14,7 +14,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Clipboard from 'expo-clipboard';
 import Constants from 'expo-constants';
-// import { supabase } from '../lib/supabase'; // Removed - using Flask API
+import { referralAPI } from '../services/api';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 
@@ -45,52 +45,15 @@ export default function Referral({ userId, onBack }) {
       try {
         setLoading(true);
 
-        if (!userId) {
-          setSaveError('Missing user id. Please re-login.');
-          return;
-        }
-
-        // Fetch user basic stats if needed, or use placeholders
-        // For now, let's keep it demo-friendly as requested for aesthetics
-
-        // 1) Try to fetch an existing code
-        const { data: rows, error: selErr } = await supabase
-          .from('referral_codes')
-          .select('code')
-          .eq('user_id', userId)
-          .limit(1);
-
-        if (rows && rows.length > 0) {
-          const c = rows[0].code;
-          if (!on) return;
-          setCode(c);
-          setLink(`${REF_BASE}/${encodeURIComponent(c)}`);
-          return;
-        }
-
-        // 2) Generate a code
-        const base = (userId || '').replace(/-/g, '').toUpperCase();
-        let gen = `SDC-${base.slice(-6)}`;
-
-        const upsertOnce = async (candidate) => {
-          return await supabase
-            .from('referral_codes')
-            .upsert({ user_id: userId, code: candidate }, { onConflict: 'user_id' });
-        };
-
-        let { error: upErr } = await upsertOnce(gen);
-        if (upErr) {
-          const isDuplicate = String(upErr.code) === '23505' || /duplicate|unique/i.test(upErr.message || '');
-          if (isDuplicate) {
-            const rand = Math.random().toString(36).slice(2, 8).toUpperCase();
-            gen = `SDC-${rand}`;
-            await upsertOnce(gen);
-          }
-        }
+        const [codeData, statsData] = await Promise.all([
+          referralAPI.getCode(),
+          referralAPI.getStats()
+        ]);
 
         if (!on) return;
-        setCode(gen);
-        setLink(`${REF_BASE}/${encodeURIComponent(gen)}`);
+        setCode(codeData.code);
+        setLink(`${REF_BASE}/${encodeURIComponent(codeData.code)}`);
+        setStats(statsData);
       } catch (e) {
         setSaveError(e?.message || String(e));
       } finally {

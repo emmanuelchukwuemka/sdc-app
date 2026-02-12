@@ -15,7 +15,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 // Removed Supabase import - using Flask API service instead
-import { badgesAPI, authAPI } from '../services/api';
+import { badgesAPI, authAPI, kycAPI } from '../services/api';
 
 const BRAND_GREEN = '#16A34A';
 const BRAND_DARK = '#064E3B';
@@ -55,12 +55,7 @@ export default function Profile({ route, navigation, onLogout }) {
     (async () => {
       try {
         setLoading(true);
-        const { data, error } = await supabase
-          .from('kyc_documents')
-          .select('form_data')
-          .eq('user_id', userId)
-          .maybeSingle();
-        if (error) throw error;
+        const data = await kycAPI.getStatus();
         if (on) setProfileData(data?.form_data || {});
       } catch (e) {
         console.log('Profile load error', e?.message || e);

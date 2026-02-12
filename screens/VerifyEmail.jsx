@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-// import { supabase } from '../lib/supabase'; // Removed - using Flask API
+import { authAPI } from '../services/api';
 import AlertModal from '../components/AlertModal';
 
 const BRAND_GREEN = '#16A34A';
@@ -41,14 +41,7 @@ export default function VerifyEmail({ email, onSuccess, onBack }) {
 
         setLoading(true);
         try {
-            const { data, error } = await supabase.auth.verifyOtp({
-                email,
-                token: code,
-                type: 'signup',
-            });
-
-            if (error) throw error;
-
+            const data = await authAPI.verifyOtp(email, code, 'signup');
             showAlert('Success', 'Email verified successfully!', 'success');
             setTimeout(() => {
                 onSuccess(data.user);
@@ -65,11 +58,7 @@ export default function VerifyEmail({ email, onSuccess, onBack }) {
         if (resendCooldown > 0) return;
         setLoading(true);
         try {
-            const { error } = await supabase.auth.resend({
-                type: 'signup',
-                email,
-            });
-            if (error) throw error;
+            await authAPI.resendOtp(email, 'signup');
             setResendCooldown(60);
             showAlert('Code Sent', 'A new verification code has been sent to your email.', 'success');
         } catch (err) {

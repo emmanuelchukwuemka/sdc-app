@@ -1,7 +1,7 @@
 // services/api-config.js
 // Utility for configuring API endpoints at runtime
 
-let currentApiUrl = 'https://surrogateanddonorconnect.com'; // Production HTTPS endpoint
+let currentApiUrl = 'http://72.62.4.119:5000'; // Localhost server endpoint
 let currentApiBasePath = '/api';
 
 export const getApiBaseUrl = () => {
@@ -25,7 +25,7 @@ export const CONFIGURATIONS = {
     basePath: '/api'
   },
   MOBILE_DEV: {
-    url: 'https://surrogateanddonorconnect.com', // Production HTTPS endpoint
+    url: 'http://72.62.4.119:5000', // Localhost server endpoint
     basePath: '/api'
   }
 };

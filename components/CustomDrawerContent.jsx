@@ -28,15 +28,27 @@ export default function CustomDrawerContent(props) {
     let mounted = true;
     const fetchUser = async () => {
       try {
-        // Use authAPI to get current user info
+        // First try to get user data from AsyncStorage
+        const storedUserData = await AsyncStorage.getItem('userData');
+        if (storedUserData && mounted) {
+          const userData = JSON.parse(storedUserData);
+          setUser(userData);
+          return;
+        }
+
+        // Fallback to API call if no stored data
         const currentUser = await authAPI.getCurrentUser();
         if (mounted) {
-          setUser({
+          const userData = {
             first_name: currentUser.first_name || '',
             last_name: currentUser.last_name || '',
             role: currentUser.role,
-            email: currentUser.email
-          });
+            email: currentUser.email,
+            id: currentUser.id
+          };
+          setUser(userData);
+          // Store for future use
+          await AsyncStorage.setItem('userData', JSON.stringify(userData));
         }
       } catch (error) {
         console.log('Failed to fetch user data:', error);
@@ -51,30 +63,7 @@ export default function CustomDrawerContent(props) {
     };
   }, [userId, profile]);
 
-  // Read role from Supabase auth app_metadata
-  // Skipped for demo mode
-  /*useEffect(() => {
-    let on = true;
-    (async () => {
-      const { data, error } = await supabase.auth.getUser();
-      if (!error && on) {
-        const appRole = data?.user?.app_metadata?.role;
-        setAuthRole(appRole || null);
-      }
-    })();
-    return () => { on = false; };
-  }, []);*/
-
-  const goTo = (screen) => {
-    if (isIpFlow || isSurrogateFlow) {
-      props.navigation.closeDrawer();
-      props.navigation.navigate('Main', { screen });
-    } else {
-      props.navigation.navigate(screen);
-    }
-  };
-
-  const effectiveRole = user?.role ?? role ?? authRole ?? null;
+  const effectiveRole = user?.role ?? role ?? null;
 
   return (
     <DrawerContentScrollView {...props} contentContainerStyle={{ flex: 1 }}>
@@ -107,22 +96,34 @@ export default function CustomDrawerContent(props) {
 
       {/* Menu Items */}
       <View style={styles.menu}>
-        <TouchableOpacity style={styles.menuItem} onPress={() => goTo('Dashboard')}>
+        <TouchableOpacity 
+          style={styles.menuItem} 
+          onPress={() => {
+            props.navigation.closeDrawer();
+            props.navigation.navigate('Dashboard');
+          }}
+        >
           <Ionicons name="speedometer-outline" size={22} color="#16A34A" />
           <Text style={styles.menuText}>Dashboard</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.menuItem} onPress={() => goTo('Wallet')}>
+        <TouchableOpacity 
+          style={styles.menuItem} 
+          onPress={() => {
+            props.navigation.closeDrawer();
+            props.navigation.navigate('Wallet');
+          }}
+        >
           <Ionicons name="wallet-outline" size={22} color="#16A34A" />
           <Text style={styles.menuText}>Wallet</Text>
         </TouchableOpacity>
 
         {effectiveRole !== 'SURROGATE' && (
-          <TouchableOpacity 
-            style={styles.menuItem} 
-            onPress={() => { 
-              props.navigation.closeDrawer(); 
-              props.navigation.navigate('Favorites', { userId }); 
+          <TouchableOpacity
+            style={styles.menuItem}
+            onPress={() => {
+              props.navigation.closeDrawer();
+              props.navigation.navigate('Favorites', { userId });
             }}
           >
             <Ionicons name="heart-outline" size={22} color="#16A34A" />
@@ -130,12 +131,24 @@ export default function CustomDrawerContent(props) {
           </TouchableOpacity>
         )}
 
-        <TouchableOpacity style={styles.menuItem} onPress={() => goTo('Notifications')}>
+        <TouchableOpacity 
+          style={styles.menuItem} 
+          onPress={() => {
+            props.navigation.closeDrawer();
+            props.navigation.navigate('Notifications');
+          }}
+        >
           <Ionicons name="notifications-outline" size={22} color="#16A34A" />
           <Text style={styles.menuText}>Notifications</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.menuItem} onPress={() => goTo('Dispute')}>
+        <TouchableOpacity 
+          style={styles.menuItem} 
+          onPress={() => {
+            props.navigation.closeDrawer();
+            props.navigation.navigate('Dispute');
+          }}
+        >
           <Ionicons name="alert-circle-outline" size={22} color="#16A34A" />
           <Text style={styles.menuText}>Disputes</Text>
         </TouchableOpacity>

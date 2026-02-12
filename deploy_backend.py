@@ -36,34 +36,9 @@ class BackendDeployer:
             return False
     
     def find_available_port(self, start_port=5000, max_port=6000):
-        """Find an available port in the given range"""
-        print(f"Searching for available port between {start_port} and {max_port}...")
-        
-        # Create a separate SSH client to check port availability
-        temp_ssh = paramiko.SSHClient()
-        temp_ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-        temp_ssh.connect(
-            hostname=self.hostname,
-            username=self.username,
-            password=self.password
-        )
-        
-        for port in range(start_port, max_port + 1):
-            try:
-                # Try to check if port is in use by attempting to run netstat
-                stdin, stdout, stderr = temp_ssh.exec_command(f"netstat -tuln | grep :{port}")
-                output = stdout.read().decode()
-                
-                if not output.strip():  # Port is not in use
-                    print(f"Port {port} is available")
-                    temp_ssh.close()
-                    return port
-            except Exception as e:
-                print(f"Error checking port {port}: {e}")
-                continue
-        
-        temp_ssh.close()
-        raise Exception(f"No available ports found between {start_port} and {max_port}")
+        """Use port 5000 directly instead of finding available port"""
+        print(f"Using port 5000 (fixed port for app connection)")
+        return 5000
     
     def zip_directory(self, directory_path):
         """Create a zip of the backend directory"""
@@ -169,7 +144,37 @@ class BackendDeployer:
         for cmd in install_commands:
             stdin, stdout, stderr = self.ssh_client.exec_command(f"cd {remote_path} && {cmd}")
             exit_status = stdout.channel.recv_exit_status()
-    
+
+    def initialize_database(self, remote_path="/home/deploy/sdc-backend"):
+        print("Resetting database...")
+        # Remove old database to ensure clean schema
+        stdin, stdout, stderr = self.ssh_client.exec_command(
+            f"cd {remote_path} && rm -f sdc_dev.db instance/sdc_dev.db"
+        )
+        
+        print("Initializing database...")
+        stdin, stdout, stderr = self.ssh_client.exec_command(
+            f"cd {remote_path} && source venv/bin/activate && python init_db.py"
+        )
+        exit_status = stdout.channel.recv_exit_status()
+        output = stdout.read().decode()
+        if exit_status != 0:
+            print(f"Warning: Database init warning: {stderr.read().decode()}")
+        else:
+            print("Database initialized successfully!")
+        
+        # Create admin user
+        print("Creating admin user...")
+        stdin, stdout, stderr = self.ssh_client.exec_command(
+            f"cd {remote_path} && source venv/bin/activate && python create_admin.py"
+        )
+        exit_status = stdout.channel.recv_exit_status()
+        output = stdout.read().decode()
+        if exit_status != 0:
+            print(f"Warning: Admin creation warning: {stderr.read().decode()}")
+        else:
+            print("Admin user created successfully!")
+
     def create_service_file(self, port, remote_path="/home/deploy/sdc-backend"):
         """Create a systemd service file for the backend"""
         service_content = f"""[Unit]
@@ -218,8 +223,8 @@ WantedBy=multi-user.target"""
     
     def start_backend_service(self):
         """Start the backend service"""
-        print("Starting backend service...")
-        stdin, stdout, stderr = self.ssh_client.exec_command("sudo systemctl start sdc-backend.service")
+        print("Restarting backend service...")
+        stdin, stdout, stderr = self.ssh_client.exec_command("sudo systemctl restart sdc-backend.service")
         exit_status = stdout.channel.recv_exit_status()
         if exit_status != 0:
             raise Exception(f"Failed to start service: {stderr.read().decode()}")
@@ -253,6 +258,9 @@ WantedBy=multi-user.target"""
             
             # Setup virtual environment and install dependencies
             self.setup_virtual_env()
+            
+            # Initialize database
+            self.initialize_database()
             
             # Create service file
             self.create_service_file(available_port)

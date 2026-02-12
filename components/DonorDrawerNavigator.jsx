@@ -1,7 +1,6 @@
 // components/DonorDrawerNavigator.jsx
 import React, { useEffect, useState } from 'react';
 import { createDrawerNavigator } from '@react-navigation/drawer';
-// import { supabase } from '../lib/supabase'; // Removed - using Flask API
 import CustomDrawerContent from './CustomDrawerContent';
 import SurrogateNavigator from './SurrogateNavigator'; // reuse bottom tabs for now
 import SurrogateProfile from '../screens/SurrogateProfile';
@@ -18,7 +17,7 @@ export default function DonorDrawerNavigator({ userId, onLogout }) {
       // User data now passed from parent component
       // setUser() will be called with profile prop
     };
-    
+
     if (userId) {
       fetchUser();
     }
@@ -27,12 +26,12 @@ export default function DonorDrawerNavigator({ userId, onLogout }) {
   return (
     <Drawer.Navigator
       drawerContent={(props) => (
-        <CustomDrawerContent 
-          {...props} 
+        <CustomDrawerContent
+          {...props}
           userId={userId}
           role={user?.role}
           profile={user}
-          onLogout={onLogout} 
+          onLogout={onLogout}
         />
       )}
       screenOptions={{

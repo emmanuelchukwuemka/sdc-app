@@ -13,8 +13,7 @@ import {
   Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
-// import { supabase } from '../lib/supabase'; // Removed - using Flask API
+import { disputesAPI } from '../services/api';
 import { LinearGradient } from 'expo-linear-gradient';
 
 const BRAND_GREEN = '#16A34A';
@@ -52,8 +51,7 @@ export default function Dispute({ route, navigation }) {
       };
       if (profileId.trim()) payload.profile_id = profileId.trim();
 
-      const { error } = await supabase.from('disputes').insert([payload]);
-      if (error) throw error;
+      await disputesAPI.submitDispute(payload);
 
       setReason('');
       setProfileId('');

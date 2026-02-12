@@ -10,7 +10,8 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
-// import { supabase } from '../lib/supabase'; // Removed - using Flask API
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { authAPI, kycAPI } from '../services/api';
 
 const BRAND_GREEN = '#16A34A';
 const LIGHT_BG = '#F8FAF9';
@@ -30,18 +31,30 @@ export default function IpDashboard({ route, navigation }) {
   const { userId } = route.params || {};
   const [kycStatus, setKycStatus] = useState(null);
   const [formProgress, setFormProgress] = useState(0);
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     const fetchKyc = async () => {
-      if (!userId) return;
-      const { data, error } = await supabase
-        .from('kyc_documents')
-        .select('status, form_progress')
-        .eq('user_id', userId)
-        .maybeSingle();
-      if (!error && data) {
-        setKycStatus(data.status);
-        setFormProgress(data.form_progress || 0);
+      try {
+        setLoading(true);
+        const [profile, kycStatusData] = await Promise.all([
+          authAPI.getCurrentUser(),
+          kycAPI.getStatus()
+        ]);
+
+        if (profile) {
+          setUser(profile);
+        }
+
+        if (kycStatusData) {
+          setKycStatus(kycStatusData.status);
+          setFormProgress(kycStatusData.form_progress || 0);
+        }
+      } catch (err) {
+        console.log('Error dashboard init', err.message);
+      } finally {
+        setLoading(false);
       }
     };
     fetchKyc();
@@ -64,6 +77,19 @@ export default function IpDashboard({ route, navigation }) {
   return (
     <SafeAreaView edges={['bottom']} style={styles.safeContainer}>
       <ScrollView contentContainerStyle={styles.content}>
+        {/* Welcome Section */}
+        <View style={styles.welcomeCard}>
+          <Text style={styles.welcomeTitle}>
+            Welcome back, {user?.first_name || 'User'}!
+          </Text>
+          <Text style={styles.welcomeSubtitle}>
+            {user?.email || 'No email provided'}
+          </Text>
+          <Text style={styles.welcomeRole}>
+            Role: {user?.role || 'Unknown'}
+          </Text>
+        </View>
+
         {/* Quick Actions */}
         <View style={styles.pillActionsRow}>
           <TouchableOpacity
@@ -155,6 +181,34 @@ export default function IpDashboard({ route, navigation }) {
 const styles = StyleSheet.create({
   safeContainer: { flex: 1, backgroundColor: LIGHT_BG },
   content: { padding: 16 },
+
+  welcomeCard: {
+    backgroundColor: CARD_BG,
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 24,
+    shadowColor: '#000',
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  welcomeTitle: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: TEXT_PRIMARY,
+    marginBottom: 4,
+  },
+  welcomeSubtitle: {
+    fontSize: 14,
+    color: TEXT_SECONDARY,
+    marginBottom: 4,
+  },
+  welcomeRole: {
+    fontSize: 12,
+    color: BRAND_GREEN,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+  },
 
   pillActionsRow: {
     flexDirection: 'row',

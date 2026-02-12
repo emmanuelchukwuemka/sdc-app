@@ -1,0 +1,103 @@
+--- STDOUT ---
+Feb 11 08:17:28 srv1185112 gunicorn[550687]:   File "<frozen importlib._bootstrap>", line 488, in _call_with_frames_removed
+Feb 11 08:17:28 srv1185112 gunicorn[550687]:   File "/home/deploy/sdc-backend/app.py", line 25, in <module>
+Feb 11 08:17:28 srv1185112 gunicorn[550687]:     from src.controllers import auth_bp, user_bp, kyc_bp, marketplace_bp, agency_bp, favorites_bp, badge_bp, admin_bp, wallet_bp, notification_bp, messages_bp, upload_bp
+Feb 11 08:17:28 srv1185112 gunicorn[550687]:   File "/home/deploy/sdc-backend/src/controllers/__init__.py", line 9, in <module>
+Feb 11 08:17:28 srv1185112 gunicorn[550687]:     from .admin_controller import get_reports, get_financial_data, get_contracts, get_disputes, get_contract_templates, add_contract_template, resolve_dispute
+Feb 11 08:17:28 srv1185112 gunicorn[550687]: ImportError: cannot import name 'resolve_dispute' from 'src.controllers.admin_controller' (/home/deploy/sdc-backend/src/controllers/admin_controller.py)
+Feb 11 08:17:28 srv1185112 gunicorn[550687]: [2026-02-11 08:17:28 +0000] [550687] [INFO] Worker exiting (pid: 550687)
+Feb 11 08:17:28 srv1185112 gunicorn[550686]: [2026-02-11 08:17:28 +0000] [550686] [ERROR] Worker (pid:550688) exited with code 3
+Feb 11 08:17:28 srv1185112 gunicorn[550686]: [2026-02-11 08:17:28 +0000] [550686] [ERROR] Worker (pid:550687) was sent SIGTERM!
+Feb 11 08:17:29 srv1185112 gunicorn[550686]: [2026-02-11 08:17:29 +0000] [550686] [ERROR] Shutting down: Master
+Feb 11 08:17:29 srv1185112 gunicorn[550686]: [2026-02-11 08:17:29 +0000] [550686] [ERROR] Reason: Worker failed to boot.
+Feb 11 08:17:29 srv1185112 systemd[1]: sdc-backend.service: Main process exited, code=exited, status=3/NOTIMPLEMENTED
+Feb 11 08:17:29 srv1185112 systemd[1]: sdc-backend.service: Failed with result 'exit-code'.
+Feb 11 08:17:29 srv1185112 systemd[1]: sdc-backend.service: Consumed 1.096s CPU time.
+Feb 11 08:17:39 srv1185112 systemd[1]: sdc-backend.service: Scheduled restart job, restart counter is at 56.
+Feb 11 08:17:39 srv1185112 systemd[1]: Started sdc-backend.service - SDC Mobile Backend.
+Feb 11 08:17:39 srv1185112 gunicorn[550691]: [2026-02-11 08:17:39 +0000] [550691] [INFO] Starting gunicorn 23.0.0
+Feb 11 08:17:39 srv1185112 gunicorn[550691]: [2026-02-11 08:17:39 +0000] [550691] [INFO] Listening at: http://0.0.0.0:5000 (550691)
+Feb 11 08:17:39 srv1185112 gunicorn[550691]: [2026-02-11 08:17:39 +0000] [550691] [INFO] Using worker: sync
+Feb 11 08:17:39 srv1185112 gunicorn[550692]: [2026-02-11 08:17:39 +0000] [550692] [INFO] Booting worker with pid: 550692
+Feb 11 08:17:39 srv1185112 gunicorn[550693]: [2026-02-11 08:17:39 +0000] [550693] [INFO] Booting worker with pid: 550693
+Feb 11 08:17:39 srv1185112 gunicorn[550692]: [2026-02-11 08:17:39 +0000] [550692] [ERROR] Exception in worker process
+Feb 11 08:17:39 srv1185112 gunicorn[550692]: Traceback (most recent call last):
+Feb 11 08:17:39 srv1185112 gunicorn[550692]:   File "/home/deploy/sdc-backend/venv/lib/python3.12/site-packages/gunicorn/arbiter.py", line 608, in spawn_worker
+Feb 11 08:17:39 srv1185112 gunicorn[550692]:     worker.init_process()
+Feb 11 08:17:39 srv1185112 gunicorn[550692]:   File "/home/deploy/sdc-backend/venv/lib/python3.12/site-packages/gunicorn/workers/base.py", line 135, in init_process
+Feb 11 08:17:39 srv1185112 gunicorn[550692]:     self.load_wsgi()
+Feb 11 08:17:39 srv1185112 gunicorn[550692]:   File "/home/deploy/sdc-backend/venv/lib/python3.12/site-packages/gunicorn/workers/base.py", line 147, in load_wsgi
+Feb 11 08:17:39 srv1185112 gunicorn[550692]:     self.wsgi = self.app.wsgi()
+Feb 11 08:17:39 srv1185112 gunicorn[550692]:                 ^^^^^^^^^^^^^^^
+Feb 11 08:17:39 srv1185112 gunicorn[550692]:   File "/home/deploy/sdc-backend/venv/lib/python3.12/site-packages/gunicorn/app/base.py", line 66, in wsgi
+Feb 11 08:17:39 srv1185112 gunicorn[550692]:     self.callable = self.load()
+Feb 11 08:17:39 srv1185112 gunicorn[550692]:                     ^^^^^^^^^^^
+Feb 11 08:17:39 srv1185112 gunicorn[550692]:   File "/home/deploy/sdc-backend/venv/lib/python3.12/site-packages/gunicorn/app/wsgiapp.py", line 57, in load
+Feb 11 08:17:39 srv1185112 gunicorn[550692]:     return self.load_wsgiapp()
+Feb 11 08:17:39 srv1185112 gunicorn[550692]:            ^^^^^^^^^^^^^^^^^^^
+Feb 11 08:17:39 srv1185112 gunicorn[550692]:   File "/home/deploy/sdc-backend/venv/lib/python3.12/site-packages/gunicorn/app/wsgiapp.py", line 47, in load_wsgiapp
+Feb 11 08:17:39 srv1185112 gunicorn[550692]:     return util.import_app(self.app_uri)
+Feb 11 08:17:39 srv1185112 gunicorn[550692]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Feb 11 08:17:39 srv1185112 gunicorn[550692]:   File "/home/deploy/sdc-backend/venv/lib/python3.12/site-packages/gunicorn/util.py", line 370, in import_app
+Feb 11 08:17:39 srv1185112 gunicorn[550692]:     mod = importlib.import_module(module)
+Feb 11 08:17:39 srv1185112 gunicorn[550692]:           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Feb 11 08:17:39 srv1185112 gunicorn[550692]:   File "/usr/lib/python3.12/importlib/__init__.py", line 90, in import_module
+Feb 11 08:17:39 srv1185112 gunicorn[550692]:     return _bootstrap._gcd_import(name[level:], package, level)
+Feb 11 08:17:39 srv1185112 gunicorn[550692]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Feb 11 08:17:39 srv1185112 gunicorn[550692]:   File "<frozen importlib._bootstrap>", line 1387, in _gcd_import
+Feb 11 08:17:39 srv1185112 gunicorn[550692]:   File "<frozen importlib._bootstrap>", line 1360, in _find_and_load
+Feb 11 08:17:39 srv1185112 gunicorn[550692]:   File "<frozen importlib._bootstrap>", line 1331, in _find_and_load_unlocked
+Feb 11 08:17:39 srv1185112 gunicorn[550692]:   File "<frozen importlib._bootstrap>", line 935, in _load_unlocked
+Feb 11 08:17:39 srv1185112 gunicorn[550692]:   File "<frozen importlib._bootstrap_external>", line 995, in exec_module
+Feb 11 08:17:39 srv1185112 gunicorn[550692]:   File "<frozen importlib._bootstrap>", line 488, in _call_with_frames_removed
+Feb 11 08:17:39 srv1185112 gunicorn[550692]:   File "/home/deploy/sdc-backend/app.py", line 25, in <module>
+Feb 11 08:17:39 srv1185112 gunicorn[550692]:     from src.controllers import auth_bp, user_bp, kyc_bp, marketplace_bp, agency_bp, favorites_bp, badge_bp, admin_bp, wallet_bp, notification_bp, messages_bp, upload_bp
+Feb 11 08:17:39 srv1185112 gunicorn[550692]:   File "/home/deploy/sdc-backend/src/controllers/__init__.py", line 9, in <module>
+Feb 11 08:17:39 srv1185112 gunicorn[550692]:     from .admin_controller import get_reports, get_financial_data, get_contracts, get_disputes, get_contract_templates, add_contract_template, resolve_dispute
+Feb 11 08:17:39 srv1185112 gunicorn[550692]: ImportError: cannot import name 'resolve_dispute' from 'src.controllers.admin_controller' (/home/deploy/sdc-backend/src/controllers/admin_controller.py)
+Feb 11 08:17:39 srv1185112 gunicorn[550692]: [2026-02-11 08:17:39 +0000] [550692] [INFO] Worker exiting (pid: 550692)
+Feb 11 08:17:39 srv1185112 gunicorn[550693]: [2026-02-11 08:17:39 +0000] [550693] [ERROR] Exception in worker process
+Feb 11 08:17:39 srv1185112 gunicorn[550693]: Traceback (most recent call last):
+Feb 11 08:17:39 srv1185112 gunicorn[550693]:   File "/home/deploy/sdc-backend/venv/lib/python3.12/site-packages/gunicorn/arbiter.py", line 608, in spawn_worker
+Feb 11 08:17:39 srv1185112 gunicorn[550693]:     worker.init_process()
+Feb 11 08:17:39 srv1185112 gunicorn[550693]:   File "/home/deploy/sdc-backend/venv/lib/python3.12/site-packages/gunicorn/workers/base.py", line 135, in init_process
+Feb 11 08:17:39 srv1185112 gunicorn[550693]:     self.load_wsgi()
+Feb 11 08:17:39 srv1185112 gunicorn[550693]:   File "/home/deploy/sdc-backend/venv/lib/python3.12/site-packages/gunicorn/workers/base.py", line 147, in load_wsgi
+Feb 11 08:17:39 srv1185112 gunicorn[550693]:     self.wsgi = self.app.wsgi()
+Feb 11 08:17:39 srv1185112 gunicorn[550693]:                 ^^^^^^^^^^^^^^^
+Feb 11 08:17:39 srv1185112 gunicorn[550693]:   File "/home/deploy/sdc-backend/venv/lib/python3.12/site-packages/gunicorn/app/base.py", line 66, in wsgi
+Feb 11 08:17:39 srv1185112 gunicorn[550693]:     self.callable = self.load()
+Feb 11 08:17:39 srv1185112 gunicorn[550693]:                     ^^^^^^^^^^^
+Feb 11 08:17:39 srv1185112 gunicorn[550693]:   File "/home/deploy/sdc-backend/venv/lib/python3.12/site-packages/gunicorn/app/wsgiapp.py", line 57, in load
+Feb 11 08:17:39 srv1185112 gunicorn[550693]:     return self.load_wsgiapp()
+Feb 11 08:17:39 srv1185112 gunicorn[550693]:            ^^^^^^^^^^^^^^^^^^^
+Feb 11 08:17:39 srv1185112 gunicorn[550693]:   File "/home/deploy/sdc-backend/venv/lib/python3.12/site-packages/gunicorn/app/wsgiapp.py", line 47, in load_wsgiapp
+Feb 11 08:17:39 srv1185112 gunicorn[550693]:     return util.import_app(self.app_uri)
+Feb 11 08:17:39 srv1185112 gunicorn[550693]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Feb 11 08:17:39 srv1185112 gunicorn[550693]:   File "/home/deploy/sdc-backend/venv/lib/python3.12/site-packages/gunicorn/util.py", line 370, in import_app
+Feb 11 08:17:39 srv1185112 gunicorn[550693]:     mod = importlib.import_module(module)
+Feb 11 08:17:39 srv1185112 gunicorn[550693]:           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Feb 11 08:17:39 srv1185112 gunicorn[550693]:   File "/usr/lib/python3.12/importlib/__init__.py", line 90, in import_module
+Feb 11 08:17:39 srv1185112 gunicorn[550693]:     return _bootstrap._gcd_import(name[level:], package, level)
+Feb 11 08:17:39 srv1185112 gunicorn[550693]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Feb 11 08:17:39 srv1185112 gunicorn[550693]:   File "<frozen importlib._bootstrap>", line 1387, in _gcd_import
+Feb 11 08:17:39 srv1185112 gunicorn[550693]:   File "<frozen importlib._bootstrap>", line 1360, in _find_and_load
+Feb 11 08:17:39 srv1185112 gunicorn[550693]:   File "<frozen importlib._bootstrap>", line 1331, in _find_and_load_unlocked
+Feb 11 08:17:39 srv1185112 gunicorn[550693]:   File "<frozen importlib._bootstrap>", line 935, in _load_unlocked
+Feb 11 08:17:39 srv1185112 gunicorn[550693]:   File "<frozen importlib._bootstrap_external>", line 995, in exec_module
+Feb 11 08:17:39 srv1185112 gunicorn[550693]:   File "<frozen importlib._bootstrap>", line 488, in _call_with_frames_removed
+Feb 11 08:17:39 srv1185112 gunicorn[550693]:   File "/home/deploy/sdc-backend/app.py", line 25, in <module>
+Feb 11 08:17:39 srv1185112 gunicorn[550693]:     from src.controllers import auth_bp, user_bp, kyc_bp, marketplace_bp, agency_bp, favorites_bp, badge_bp, admin_bp, wallet_bp, notification_bp, messages_bp, upload_bp
+Feb 11 08:17:39 srv1185112 gunicorn[550693]:   File "/home/deploy/sdc-backend/src/controllers/__init__.py", line 9, in <module>
+Feb 11 08:17:39 srv1185112 gunicorn[550693]:     from .admin_controller import get_reports, get_financial_data, get_contracts, get_disputes, get_contract_templates, add_contract_template, resolve_dispute
+Feb 11 08:17:39 srv1185112 gunicorn[550693]: ImportError: cannot import name 'resolve_dispute' from 'src.controllers.admin_controller' (/home/deploy/sdc-backend/src/controllers/admin_controller.py)
+Feb 11 08:17:39 srv1185112 gunicorn[550693]: [2026-02-11 08:17:39 +0000] [550693] [INFO] Worker exiting (pid: 550693)
+Feb 11 08:17:39 srv1185112 gunicorn[550691]: [2026-02-11 08:17:39 +0000] [550691] [ERROR] Worker (pid:550692) exited with code 3
+Feb 11 08:17:39 srv1185112 gunicorn[550691]: [2026-02-11 08:17:39 +0000] [550691] [ERROR] Worker (pid:550693) was sent SIGTERM!
+Feb 11 08:17:39 srv1185112 gunicorn[550691]: [2026-02-11 08:17:39 +0000] [550691] [ERROR] Shutting down: Master
+Feb 11 08:17:39 srv1185112 gunicorn[550691]: [2026-02-11 08:17:39 +0000] [550691] [ERROR] Reason: Worker failed to boot.
+Feb 11 08:17:39 srv1185112 systemd[1]: sdc-backend.service: Main process exited, code=exited, status=3/NOTIMPLEMENTED
+Feb 11 08:17:39 srv1185112 systemd[1]: sdc-backend.service: Failed with result 'exit-code'.
+Feb 11 08:17:39 srv1185112 systemd[1]: sdc-backend.service: Consumed 1.159s CPU time.
+
+--- STDERR ---

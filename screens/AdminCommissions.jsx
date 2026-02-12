@@ -15,7 +15,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-// import { supabase } from '../lib/supabase'; // Removed - using Flask API
+import { marketplaceAPI } from '../services/api';
 
 const BRAND_GREEN = '#16A34A';
 const BRAND_DARK = '#14532D';
@@ -80,33 +80,22 @@ export default function AdminCommissions({
   const [msg, setMsg] = useState('');
 
   useEffect(() => {
-    let on = true;
-    (async () => {
+    const loadSettings = async () => {
       try {
         setLoading(true);
-        const { data, error } = await supabase
-          .from('commission_settings')
-          .select('category, percent');
-        if (error) throw error;
-        const map = Object.fromEntries((data || []).map(r => [r.category, Number(r.percent)]));
-        if (!on) return;
-        if (Number.isFinite(map.unlock)) setUnlockPct(String(map.unlock));
-        if (Number.isFinite(map.subscription)) setSubPct(String(map.subscription));
+        const data = await marketplaceAPI.getCommissionSettings();
+        if (data) {
+          if (data.unlock !== undefined) setUnlockPct(String(data.unlock));
+          if (data.subscription !== undefined) setSubPct(String(data.subscription));
+        }
       } catch (e) {
         console.log('load commissions error', e?.message || e);
       } finally {
-        on && setLoading(false);
+        setLoading(false);
       }
-    })();
-    return () => { on = false; };
+    };
+    loadSettings();
   }, []);
-
-  const upsertCommission = async (category, percentNumber) => {
-    const { error } = await supabase
-      .from('commission_settings')
-      .upsert({ category, percent: percentNumber }, { onConflict: 'category' });
-    if (error) throw error;
-  };
 
   const saveAll = async () => {
     try {
@@ -117,8 +106,8 @@ export default function AdminCommissions({
       if (!Number.isFinite(u) || u < 0 || u > 100) return Alert.alert('Invalid', 'Unlock % must be 0–100');
       if (!Number.isFinite(s) || s < 0 || s > 100) return Alert.alert('Invalid', 'Subscription % must be 0–100');
 
-      await upsertCommission('unlock', u);
-      await upsertCommission('subscription', s);
+      await marketplaceAPI.updateCommissionSetting('unlock', u);
+      await marketplaceAPI.updateCommissionSetting('subscription', s);
 
       setMsg('Saved successfully.');
       setTimeout(() => setMsg(''), 3000);

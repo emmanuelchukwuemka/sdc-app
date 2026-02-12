@@ -4,7 +4,9 @@ Script to create an admin user in the database
 """
 import sys
 import os
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'src'))
+
+# Add backend folder to path
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from app import app
 from src.models import db, User
@@ -25,10 +27,13 @@ def create_admin_user():
         
         admin_user = User(
             email='admin@sdc.com',
+            username='admin',
             password_hash=hashed_pw,
             role='ADMIN',
             first_name='Admin',
-            last_name='User'
+            last_name='User',
+            is_verified=True,
+            is_active=True
         )
         
         db.session.add(admin_user)

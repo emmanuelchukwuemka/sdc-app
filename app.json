@@ -26,8 +26,6 @@
       "favicon": "./assets/favicon.png"
     },
     "extra": {
-      "supabaseUrl": "https://dienzvhogrvdighmdyyg.supabase.co",
-      "supabaseAnonKey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRpZW56dmhvZ3J2ZGlnaG1keXlnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc2MDI3MjEsImV4cCI6MjA3MzE3ODcyMX0.CAFYbRAmeQMpuuSCSV047KverApNDss6GezLvvMiWzg",
       "adminPin": "6284",
       "referralBaseUrl": "https://sdc.example/ref",
       "eas": {

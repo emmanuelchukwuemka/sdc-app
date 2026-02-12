@@ -60,12 +60,136 @@ class KycDocument(db.Model):
 
 class User(db.Model):
     __tablename__ = 'users'
+    __table_args__ = (
+        db.UniqueConstraint('email', 'role', name='uq_user_email_role'),
+        db.UniqueConstraint('username', 'role', name='uq_user_username_role'),
+    )
     id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     role = db.Column(db.String(50), nullable=False)
-    email = db.Column(db.String(255), unique=True)
+    email = db.Column(db.String(255), nullable=False)
+    username = db.Column(db.String(255), nullable=False)
     password_hash = db.Column(db.String(255))
     first_name = db.Column(db.String(255))
     last_name = db.Column(db.String(255))
+    is_verified = db.Column(db.Boolean, default=False)
+    is_active = db.Column(db.Boolean, default=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    def get_reset_token(self):
+        # Simple token based on user id (in production, use proper JWT or secure token)
+        import base64
+        return base64.b64encode(f"reset_{self.id}_{self.email}".encode()).decode()
+    
+    @staticmethod
+    def verify_reset_token(token):
+        try:
+            import base64
+            data = base64.b64decode(token.encode()).decode()
+            if data.startswith('reset_'):
+                parts = data.split('_', 2)
+                return parts[1]  # Return user id
+        except:
+            return None
+    
+    def get_verification_token(self):
+        import base64
+        return base64.b64encode(f"verify_{self.id}_{self.email}".encode()).decode()
+    
+    @staticmethod
+    def verify_verification_token(token):
+        try:
+            import base64
+            data = base64.b64decode(token.encode()).decode()
+            if data.startswith('verify_'):
+                parts = data.split('_', 2)
+                return parts[1]
+        except:
+            return None
+
+# Role model for user roles
+class Role(db.Model):
+    __tablename__ = 'roles'
+    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    name = db.Column(db.String(50), unique=True, nullable=False)
+    description = db.Column(db.String(255))
+
+# Donor related models
+class Donor(db.Model):
+    __tablename__ = 'donors'
+    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id = db.Column(db.String(36), unique=True, nullable=False)
+    agency_id = db.Column(db.String(36), db.ForeignKey('agencies.id'))
+    status = db.Column(db.String(50), default='active')
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+class DonorProfile(db.Model):
+    __tablename__ = 'donor_profiles'
+    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    donor_id = db.Column(db.String(36), unique=True, nullable=False)
+    bio = db.Column(db.Text)
+    date_of_birth = db.Column(db.Date)
+    location = db.Column(db.String(255))
+    occupation = db.Column(db.String(255))
+    education = db.Column(db.String(255))
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+class DonorKyc(db.Model):
+    __tablename__ = 'donor_kyc'
+    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    donor_id = db.Column(db.String(36), unique=True, nullable=False)
+    status = db.Column(db.String(50), default='pending')
+    document_type = db.Column(db.String(50))
+    document_number = db.Column(db.String(100))
+    verified_at = db.Column(db.DateTime)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+class DonorAppointment(db.Model):
+    __tablename__ = 'donor_appointments'
+    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    donor_id = db.Column(db.String(36), nullable=False)
+    surrogate_id = db.Column(db.String(36))
+    appointment_date = db.Column(db.DateTime)
+    status = db.Column(db.String(50), default='scheduled')
+    notes = db.Column(db.Text)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+# Surrogate related models
+class Surrogate(db.Model):
+    __tablename__ = 'surrogates'
+    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id = db.Column(db.String(36), unique=True, nullable=False)
+    agency_id = db.Column(db.String(36), db.ForeignKey('agencies.id'))
+    status = db.Column(db.String(50), default='active')
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+class SurrogateProfile(db.Model):
+    __tablename__ = 'surrogate_profiles'
+    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    surrogate_id = db.Column(db.String(36), unique=True, nullable=False)
+    bio = db.Column(db.Text)
+    date_of_birth = db.Column(db.Date)
+    location = db.Column(db.String(255))
+    occupation = db.Column(db.String(255))
+    pregnancy_history = db.Column(db.Text)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+class SurrogateKyc(db.Model):
+    __tablename__ = 'surrogate_kyc'
+    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    surrogate_id = db.Column(db.String(36), unique=True, nullable=False)
+    status = db.Column(db.String(50), default='pending')
+    document_type = db.Column(db.String(50))
+    document_number = db.Column(db.String(100))
+    verified_at = db.Column(db.DateTime)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+# Intending Parent related models
+class IntendingParent(db.Model):
+    __tablename__ = 'intending_parents'
+    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id = db.Column(db.String(36), unique=True, nullable=False)
+    agency_id = db.Column(db.String(36), db.ForeignKey('agencies.id'))
+    status = db.Column(db.String(50), default='active')
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
 class Subscription(db.Model):
@@ -181,4 +305,12 @@ class Notification(db.Model):
     body = db.Column(db.Text, nullable=False)
     severity = db.Column(db.String(20), default='info')  # info, warning, error
     status = db.Column(db.String(20), default='unread')  # unread, read
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+class ContractTemplate(db.Model):
+    __tablename__ = 'contract_templates'
+    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    name = db.Column(db.String(255), nullable=False)
+    body = db.Column(db.Text, nullable=False)
+    variables = db.Column(JSONType, default=[])
     created_at = db.Column(db.DateTime, default=datetime.utcnow)

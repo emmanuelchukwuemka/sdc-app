@@ -129,6 +129,8 @@ export default function Register({ role, onSuccess, onBack }) {
         role: role,
         first_name: cleanFirstName,
         last_name: cleanLastName,
+        username: cleanUsername,
+        middle_name: cleanMiddleName,
         form_data: {
           first_name: cleanFirstName,
           middle_name: cleanMiddleName,

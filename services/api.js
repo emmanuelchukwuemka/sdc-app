@@ -68,10 +68,64 @@ export const authAPI = {
   getCurrentUser: async () => {
     const response = await apiClient.get('/auth/me');
     return response.data;
+  },
+
+  resetPassword: async (email) => {
+    const response = await apiClient.post('/auth/reset-password', { email });
+    return response.data;
+  },
+
+  updatePassword: async (newPassword) => {
+    const response = await apiClient.post('/auth/update-password', { password: newPassword });
+    return response.data;
+  },
+
+  verifyOtp: async (email, token, type) => {
+    const response = await apiClient.post('/auth/verify-otp', { email, token, type });
+    return response.data;
+  },
+
+  resendOtp: async (email, type) => {
+    const response = await apiClient.post('/auth/resend-otp', { email, type });
+    return response.data;
   }
 };
 
-// User API
+// ... existing code ...
+
+// Referral API
+export const referralAPI = {
+  getCode: async () => {
+    const response = await apiClient.get('/referrals/code');
+    return response.data;
+  },
+  getStats: async () => {
+    const response = await apiClient.get('/referrals/stats');
+    return response.data;
+  }
+};
+
+// Connections API
+export const connectionsAPI = {
+  getConnections: async () => {
+    const response = await apiClient.get('/connections');
+    return response.data;
+  }
+};
+
+// Journey API
+export const journeyAPI = {
+  getJourney: async (role) => {
+    const response = await apiClient.get('/journey', { params: { role } });
+    return response.data;
+  },
+  addMilestone: async (milestoneData) => {
+    const response = await apiClient.post('/journey/milestones', milestoneData);
+    return response.data;
+  }
+};
+
+// Disputes API
 export const userAPI = {
   getProfile: async (userId) => {
     const response = await apiClient.get(`/users/${userId}`);
@@ -103,6 +157,16 @@ export const marketplaceAPI = {
 
   getCommissionSettings: async () => {
     const response = await apiClient.get('/marketplace/commission-settings');
+    return response.data;
+  },
+
+  updateCommissionSetting: async (category, percent) => {
+    const response = await apiClient.post('/marketplace/commission-settings', { category, percent });
+    return response.data;
+  },
+
+  getProfile: async (userId) => {
+    const response = await apiClient.get(`/marketplace/profile/${userId}`);
     return response.data;
   }
 };
@@ -192,7 +256,7 @@ export const kycAPI = {
     const response = await apiClient.post('/kyc/documents', documentData);
     return response.data;
   },
-  
+
   // Alias for backward compatibility
   submitDocument: async (documentData) => {
     return kycAPI.submitKycDocument(documentData);
@@ -234,6 +298,41 @@ export const adminAPI = {
   getDisputes: async () => {
     const response = await apiClient.get('/admin/disputes');
     return response.data;
+  },
+
+  getContractTemplates: async () => {
+    const response = await apiClient.get('/admin/contract-templates');
+    return response.data;
+  },
+
+  addContractTemplate: async (templateData) => {
+    const response = await apiClient.post('/admin/contract-templates', templateData);
+    return response.data;
+  },
+
+  resolveDispute: async (disputeId, response) => {
+    const response_data = await apiClient.post(`/admin/disputes/${disputeId}/resolve`, { response });
+    return response_data.data;
+  }
+};
+
+// Agency API
+export const agencyAPI = {
+  getRoster: async (agencyId) => {
+    const response = await apiClient.get(`/agencies/${agencyId}/roster`);
+    return response.data;
+  },
+  getSubscription: async (agencyId) => {
+    const response = await apiClient.get(`/agencies/${agencyId}/subscription`);
+    return response.data;
+  },
+  getWallet: async (agencyId) => {
+    const response = await apiClient.get(`/agencies/${agencyId}/wallet`);
+    return response.data;
+  },
+  updateMemberStatus: async (userId, status) => {
+    const response = await apiClient.patch(`/agencies/members/${userId}/status`, { status });
+    return response.data;
   }
 };
 
@@ -243,12 +342,12 @@ export const messagesAPI = {
     const response = await apiClient.get(`/messages/${conversationId}`);
     return response.data;
   },
-  
+
   sendMessage: async (messageData) => {
     const response = await apiClient.post('/messages', messageData);
     return response.data;
   },
-  
+
   // Alias for backward compatibility
   send: async (messageData) => {
     return messagesAPI.sendMessage(messageData);
@@ -257,16 +356,32 @@ export const messagesAPI = {
 
 // Upload API
 export const uploadAPI = {
-  uploadFile: async (file, conversationId) => {
+  uploadFile: async (file, path = 'uploads') => {
     const formData = new FormData();
     formData.append('file', file);
-    formData.append('conversation_id', conversationId);
-    
+    formData.append('path', path);
+
     const response = await apiClient.post('/upload', formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
       },
     });
+    return response.data;
+  }
+};
+
+// Disputes API
+export const disputesAPI = {
+  submitDispute: async (disputeData) => {
+    const response = await apiClient.post('/disputes', disputeData);
+    return response.data;
+  }
+};
+
+// Contracts API
+export const contractsAPI = {
+  signContract: async (contractData) => {
+    const response = await apiClient.post('/contracts/sign', contractData);
     return response.data;
   }
 };

@@ -12,8 +12,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from 'expo-image-picker';
-// import { supabase } from "../lib/supabase"; // Removed - using Flask API
-import { kycAPI } from "../services/api";
+import { kycAPI, uploadAPI } from "../services/api";
 
 const BRAND_GREEN = "#16A34A";
 const GRAY = "#6B7280";
@@ -155,27 +154,16 @@ export default function KycIntendingParent({ userId, onSkip, onDone }) {
         let fileUrl = form.identification.id_card_url || null;
         if (idImage && idImage.uri) {
           try {
-            const resp = await fetch(idImage.uri);
-            const arrayBuffer = await resp.arrayBuffer();
-            const ext = idImage.uri.split('.').pop() || 'jpg';
-            const path = `kyc/${userId}/ip_id_${Date.now()}.${ext}`;
+            const fileToUpload = {
+              uri: idImage.uri,
+              type: idImage.type || 'image/jpeg',
+              name: idImage.fileName || `kyc_ip_${userId}_${Date.now()}.jpg`,
+            };
 
-            // TODO: Replace with file upload API when implemented
-            // const { error: uploadErr } = await supabase.storage
-            //   .from('kyc')
-            //   .upload(path, arrayBuffer, {
-            //     contentType: idImage.type || 'image/jpeg',
-            //     upsert: true,
-            //   });
-            // if (!uploadErr) {
-            //   const { data: pub } = supabase.storage.from('kyc').getPublicUrl(path);
-            //   fileUrl = pub.publicUrl;
-            // }
-            
-            // Mock successful upload
-            fileUrl = `https://mock-storage.com/kyc/${userId}/ip_id_${Date.now()}.${ext}`;
+            const uploadResp = await uploadAPI.uploadFile(fileToUpload, `kyc/${userId}`);
+            fileUrl = uploadResp.url;
           } catch (uErr) {
-            console.log('Upload fail:', uErr);
+            console.log('Upload fail (IP):', uErr);
           }
         }
 

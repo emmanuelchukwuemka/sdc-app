@@ -96,8 +96,27 @@ export default function Login({ role, onLogin, onBack, onGoRegister, onGoForgetP
       const loginResponse = await authAPI.login(cleanIdentifier, cleanPassword);
       
       if (loginResponse.access_token) {
+        // Check if user is trying to login with a different role than what they have
+        if (loginResponse.role !== role) {
+          showAlert(
+            'Role Mismatch', 
+            `This account is registered as ${loginResponse.role}. Please select the correct role to login.`, 
+            'warning'
+          );
+          return;
+        }
+        
         // Store the auth token
         await AsyncStorage.setItem('authToken', loginResponse.access_token);
+        
+        // Store user data for dashboard
+        await AsyncStorage.setItem('userData', JSON.stringify({
+          id: loginResponse.user_id,
+          email: loginResponse.email,
+          role: loginResponse.role,
+          first_name: loginResponse.first_name,
+          last_name: loginResponse.last_name
+        }));
         
         // Call the onLogin callback with user data
         onLogin(loginResponse.role, loginResponse.user_id);

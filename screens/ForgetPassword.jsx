@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-// import { supabase } from '../lib/supabase'; // Removed - using Flask API
+import { authAPI } from '../services/api';
 import AlertModal from '../components/AlertModal';
 import { validateEmailField } from '../utils/validation';
 
@@ -68,7 +68,7 @@ export default function ForgetPassword({ onBack, onSuccess }) {
       setEmailError(emailValidationError);
       return;
     }
-    
+
     if (!email) {
       showAlert('Error', 'Please enter your email address.', 'error');
       return;
@@ -77,13 +77,8 @@ export default function ForgetPassword({ onBack, onSuccess }) {
     try {
       setLoading(true);
 
-      // Use Supabase Auth reset password
-      // Skip for demo mode
-      // const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      //   redirectTo: 'surrogate://reset-password'
-      // });
-      // 
-      // if (error) throw error;
+      // Reset password via Flask API
+      await authAPI.resetPassword(email);
 
       // Success - show success message
       setSuccess(true);

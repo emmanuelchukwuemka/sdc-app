@@ -2,7 +2,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { View, Text, StyleSheet, TextInput, TouchableOpacity, FlatList, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-// import { supabase } from '../lib/supabase'; // Removed - using Flask API
+import { journeyAPI } from '../services/api';
 
 const BRAND_GREEN = '#16A34A';
 const ACCENT_WHITE = '#FFFFFF';
@@ -10,7 +10,7 @@ const ACCENT_WHITE = '#FFFFFF';
 export default function JourneyTimeline({
   userId = '55555555-5555-5555-5555-555555555555',
   role = 'IP',
-  onBack = () => {},
+  onBack = () => { },
 }) {
   const [journey, setJourney] = useState(null);
   const [milestones, setMilestones] = useState([]);
@@ -25,38 +25,10 @@ export default function JourneyTimeline({
     (async () => {
       try {
         setLoading(true);
-        // 1) find journey
-        let { data: found, error: findErr } = await supabase
-          .from('journeys')
-          .select('*')
-          .eq('user_id', userId)
-          .eq('role', role)
-          .limit(1);
-        if (findErr) throw findErr;
-
-        let j = found?.[0];
-        if (!j) {
-          // create one
-          const { data: created, error: insErr } = await supabase
-            .from('journeys')
-            .insert({ user_id: userId, role, title: 'Surrogacy Journey' })
-            .select('*')
-            .single();
-          if (insErr) throw insErr;
-          j = created;
-        }
+        const data = await journeyAPI.getJourney(role);
         if (!on) return;
-        setJourney(j);
-
-        // 2) load milestones
-        const { data: ms, error: msErr } = await supabase
-          .from('journey_milestones')
-          .select('*')
-          .eq('journey_id', j.id)
-          .order('when_at', { ascending: true });
-        if (msErr) throw msErr;
-        if (!on) return;
-        setMilestones(ms || []);
+        setJourney(data.journey);
+        setMilestones(data.milestones || []);
       } catch (e) {
         Alert.alert('Journey error', e?.message || String(e));
       } finally {
@@ -73,17 +45,11 @@ export default function JourneyTimeline({
 
     try {
       setAdding(true);
-      const { data, error } = await supabase
-        .from('journey_milestones')
-        .insert({
-          journey_id: journey.id,
-          title: t,
-          note: note.trim() || null,
-          // when_at defaults to now() in DB
-        })
-        .select('*')
-        .single();
-      if (error) throw error;
+      const data = await journeyAPI.addMilestone({
+        journey_id: journey.id,
+        title: t,
+        note: note.trim() || null,
+      });
 
       setMilestones((prev) => [...prev, data].sort((a, b) => new Date(a.when_at) - new Date(b.when_at)));
       setTitle('');
@@ -115,7 +81,7 @@ export default function JourneyTimeline({
   };
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top','bottom','left','right']}>
+    <SafeAreaView style={styles.safe} edges={['top', 'bottom', 'left', 'right']}>
       <View style={styles.container}>
         {/* Top bar */}
         <View style={styles.topbar}>

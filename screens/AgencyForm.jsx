@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-// import { supabase } from '../lib/supabase'; // Removed - using Flask API
+import { kycAPI } from '../services/api';
 
 const BRAND_GREEN = '#16A34A';
 const GRAY = '#6B7280';
@@ -22,15 +22,12 @@ export default function AgencyForm({ userId, onSkip, onComplete }) {
   const saveStep = async (final = false) => {
     try {
       setSaving(true);
-      await supabase.from('kyc_documents').upsert(
-        {
-          user_id: userId,
-          status: final ? 'submitted' : 'in_progress',
-          form_data: formData,
-          form_completed: final,
-        },
-        { onConflict: 'user_id' }
-      );
+      await kycAPI.submitKycDocument({
+        user_id: userId,
+        status: final ? 'submitted' : 'in_progress',
+        form_data: formData,
+        form_completed: final,
+      });
       if (final) onComplete();
       else setStep(step + 1);
     } catch (e) {

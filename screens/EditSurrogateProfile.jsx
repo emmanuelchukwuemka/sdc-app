@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-// import { supabase } from '../lib/supabase'; // Removed - using Flask API
+import { kycAPI } from '../services/api';
 
 const BRAND_GREEN = '#16A34A';
 const BORDER = '#E5E7EB';
@@ -26,12 +26,23 @@ export default function EditSurrogateProfile({ navigation, route }) {
 
   const handleSave = async () => {
     try {
-      const { error } = await supabase
-        .from('kyc_documents')
-        .update({ form_data: { personal } }) // only personal part for now
-        .eq('user_id', userId);
+      // Fetch existing document first to avoid overwriting other fields
+      const documents = await kycAPI.getKycDocuments();
+      const existing = documents.find(doc => doc.user_id === userId) || {};
 
-      if (error) throw error;
+      const updatedForm = {
+        ...(existing.form_data || {}),
+        personal: personal
+      };
+
+      await kycAPI.submitKycDocument({
+        user_id: userId,
+        role: existing.role || 'SURROGATE',
+        form_data: updatedForm,
+        form_progress: existing.form_progress || 0,
+        status: existing.status || 'in_progress'
+      });
+
       Alert.alert('Success', 'Profile updated successfully');
       navigation.goBack();
     } catch (e) {

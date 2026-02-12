@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-// import { supabase } from '../lib/supabase'; // Removed - using Flask API
+import { marketplaceAPI, uploadAPI, userAPI } from '../services/api';
 import * as ImagePicker from 'expo-image-picker';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as ImageManipulator from 'expo-image-manipulator';
@@ -32,27 +32,15 @@ export default function SurrogateProfile({ navigation, route }) {
 
   useEffect(() => {
     if (!userId) return;
-  
+
     let mounted = true;
     const fetchAll = async () => {
       setLoading(true);
       try {
-        const { data: kycRow, error: kycErr } = await supabase.from('kyc_documents')
-            .select('status, created_at, form_data')
-            .eq('user_id', userId)
-            .maybeSingle();
-  
-        if (kycErr) throw kycErr;
-  
+        const data = await marketplaceAPI.getProfile(userId);
         if (mounted) {
-          // Extract user data from form_data
-          const userData = kycRow?.form_data ? {
-            first_name: kycRow.form_data.first_name,
-            last_name: kycRow.form_data.last_name,
-            profile_image: kycRow.form_data.profile_image
-          } : null;
-          setUser(userData || null);
-          setKyc(kycRow || null);
+          setKyc(data.kyc || null);
+          setUser(data.user || null);
         }
       } catch (err) {
         console.log('Profile fetch error:', err.message);
@@ -60,7 +48,7 @@ export default function SurrogateProfile({ navigation, route }) {
         if (mounted) setLoading(false);
       }
     };
-  
+
     fetchAll();
     const unsubscribe = navigation.addListener('focus', fetchAll);
     return () => { mounted = false; unsubscribe(); };
@@ -130,7 +118,7 @@ export default function SurrogateProfile({ navigation, route }) {
   const form = kyc?.form_data || {};
   const personal = form.personal || {};
   const medical = form.medical || {};
-   const kycStatus = kyc?.status || 'Not Started';
+  const kycStatus = kyc?.status || 'Not Started';
 
   const onPickAvatar = async () => {
     try {
@@ -207,27 +195,17 @@ export default function SurrogateProfile({ navigation, route }) {
         return arr.buffer;
       }
 
-      // --- 4. upload to Supabase ---
-      const contentType = finalExt === 'png' ? 'image/png' : `image/jpeg`;
+      // --- 4. upload to Flask API ---
+      const uploadResp = await uploadAPI.uploadFile({
+        uri: Platform.OS === 'web' ? asset.uri : asset.uri, // Simplify for now
+        type: contentType,
+        name: `avatar_${user.id}.${finalExt}`
+      }, 'avatars');
 
-      const { error: uploadErr } = await supabase.storage
-        .from('avatars')
-        .upload(path, decode(base64String), {
-          contentType,
-          upsert: true,
-        });
-
-      if (uploadErr) throw uploadErr;
+      const publicUrl = uploadResp.url;
 
       // --- 5. save public URL into users table ---
-      const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(path);
-      const publicUrl = urlData.publicUrl;
-
-      const { error: updateErr } = await supabase
-          .from('users')
-          .update({ profile_image: publicUrl })
-          .eq('id', user.id);
-        if (updateErr) throw updateErr;
+      await userAPI.updateProfile({ profile_image: publicUrl });
 
       // --- 6. update local state & done ---
       setUser(prev => ({ ...(prev || {}), profile_image: publicUrl }));
@@ -266,7 +244,7 @@ export default function SurrogateProfile({ navigation, route }) {
         </Text>
         <View style={{ width: 28 }} />
       </LinearGradient>
-      
+
       {/* Avatar Card */}
       <View
         style={{
@@ -302,7 +280,7 @@ export default function SurrogateProfile({ navigation, route }) {
               <Ionicons name="person" size={38} color={TEXT_MUTED} />
             </View>
           )}
-      
+
           <TouchableOpacity
             onPress={onPickAvatar}
             style={{
@@ -327,7 +305,7 @@ export default function SurrogateProfile({ navigation, route }) {
             )}
           </TouchableOpacity>
         </View>
-      
+
         <View style={{ flex: 1 }}>
           <Text style={{ fontSize: 18, fontWeight: '900', color: '#111827' }}>
             {`${user?.first_name || personal.first_name || ''} ${user?.last_name || personal.surname || ''}`}

@@ -72,15 +72,8 @@ export default function AdminDisputes({ onBack = () => { } }) {
         Alert.alert('Missing', 'Please enter a response before resolving.');
         return;
       }
-      const { error } = await supabase
-        .from('disputes')
-        .update({
-          status: 'resolved',
-          response: responseText.trim(),
-          resolved_at: new Date().toISOString(),
-        })
-        .eq('id', id);
-      if (error) throw error;
+
+      await adminAPI.resolveDispute(id, responseText.trim());
 
       setRespondingId(null);
       setResponseText('');
