@@ -160,9 +160,9 @@ export default function SurrogateDrawerNavigator({ userId, onLogout }) {
         }}
       />
 
-      {/* Dispute */}
+      {/* Support */}
       <Drawer.Screen
-        name="Dispute"
+        name="Support"
         component={Dispute}
         initialParams={{ userId }}
         options={{

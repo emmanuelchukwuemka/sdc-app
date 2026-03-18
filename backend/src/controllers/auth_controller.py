@@ -2,7 +2,11 @@ from flask import request, jsonify
 from flask_jwt_extended import create_access_token, get_jwt_identity, jwt_required, get_jwt
 import bcrypt
 from datetime import datetime
-from ..models import db, User, KycDocument
+from ..models import db, User, KycDocument, mail
+from flask_mail import Message
+import os
+import random
+import string
 
 # Store for revoked tokens (in production, use Redis)
 revoked_tokens = set()
@@ -49,7 +53,8 @@ def register():
         password_hash=hashed_pw,
         role=normalized_role,
         first_name=data.get('first_name'),
-        last_name=data.get('last_name')
+        last_name=data.get('last_name'),
+        is_verified=True  # Auto-verify for development
     )
     db.session.add(new_user)
     db.session.flush() # Get user ID
@@ -104,7 +109,8 @@ def login():
         "role": 'IP' if user.role == 'intending_parent' else (user.role.upper() if user.role else user.role),
         "email": user.email,
         "first_name": user.first_name,
-        "last_name": user.last_name
+        "last_name": user.last_name,
+        "profile_image": user.profile_image if hasattr(user, 'profile_image') else None
     }), 200
 
 @jwt_required()
@@ -120,11 +126,14 @@ def get_current_user():
         "role": 'IP' if user.role == 'intending_parent' else (user.role.upper() if user.role else user.role),
         "first_name": user.first_name,
         "last_name": user.last_name,
+        "profile_image": user.profile_image if hasattr(user, 'profile_image') else None,
         "created_at": user.created_at.isoformat() if user.created_at else None
     }), 200
 
 def reset_password():
     data = request.get_json()
+    print(f"--- reset_password request ---")
+    print(f"Data: {data}")
     token = data.get('token')
     new_password = data.get('password')
     
@@ -146,10 +155,38 @@ def reset_password():
     
     # Otherwise, it's a forgot password request
     email = data.get('email')
+    print(f"Forgot password for email: {email}")
     user = User.query.filter_by(email=email).first()
     if not user:
-        return jsonify({"msg": "If that email exists, a reset link has been sent"}), 200
-    return jsonify({"msg": "Password reset email sent"}), 200
+        print(f"User not found for email: {email}")
+        return jsonify({"msg": "If that email exists, a reset code has been sent"}), 200
+    
+    print(f"User found: {user.email} (ID: {user.id})")
+    
+    # Generate numeric code
+    code = user.generate_reset_code()
+    db.session.commit()
+    
+    # Send email
+    try:
+        msg = Message(
+            "Password Reset Code",
+            recipients=[email],
+            body=f"Your password reset code is: {code}\n\nThis code will expire in 15 minutes."
+        )
+        mail.send(msg)
+    except Exception as e:
+        import traceback
+        error_msg = traceback.format_exc()
+        print(f"Error sending email: {str(e)}")
+        print(f"Full traceback: {error_msg}")
+        return jsonify({
+            "msg": "Failed to send reset email",
+            "error": str(e),
+            "traceback": error_msg if os.environ.get('FLASK_DEBUG') == 'True' else None
+        }), 500
+        
+    return jsonify({"msg": "Password reset code sent"}), 200
 
 @jwt_required()
 def update_password():
@@ -183,31 +220,29 @@ def refresh():
     return jsonify({"access_token": access_token}), 200
 
 def forgot_password():
-    data = request.get_json()
-    email = data.get('email')
-    user = User.query.filter_by(email=email).first()
-    if not user:
-        return jsonify({"msg": "If that email exists, a reset link has been sent"}), 200
-    return jsonify({"msg": "Password reset email sent"}), 200
+    return reset_password()
 
 def reset_password_with_token():
     data = request.get_json()
-    token = data.get('token')
+    print(f"--- reset_password_with_token request ---")
+    print(f"Data: {data}")
+    email = data.get('email')
+    code = data.get('code')
     new_password = data.get('password')
     
-    if not token or not new_password:
-        return jsonify({"msg": "Missing token or password"}), 400
+    if not email or not code or not new_password:
+        print(f"Missing fields: email={bool(email)}, code={bool(code)}, password={bool(new_password)}")
+        return jsonify({"msg": "Missing email, code, or password"}), 400
     
-    user_id = User.verify_reset_token(token)
-    if not user_id:
-        return jsonify({"msg": "Invalid or expired token"}), 400
-    
-    user = User.query.get(user_id)
+    print(f"Verifying code for {email}")
+    user = User.verify_reset_code(email, code)
     if not user:
-        return jsonify({"msg": "Invalid or expired token"}), 400
+        return jsonify({"msg": "Invalid or expired code"}), 400
     
     hashed_pw = bcrypt.hashpw(new_password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
     user.password_hash = hashed_pw
+    user.reset_code = None  # Clear code after use
+    user.reset_code_expires_at = None
     db.session.commit()
     
     return jsonify({"msg": "Password has been reset successfully"}), 200
@@ -250,6 +285,7 @@ def get_profile():
         "role": 'IP' if user.role == 'intending_parent' else (user.role.upper() if user.role else user.role),
         "first_name": user.first_name,
         "last_name": user.last_name,
+        "profile_image": user.profile_image if hasattr(user, 'profile_image') else None,
         "is_verified": user.is_verified,
         "is_active": user.is_active,
         "created_at": user.created_at.isoformat() if user.created_at else None
@@ -268,12 +304,12 @@ def update_profile():
         user.first_name = data['first_name']
     if 'last_name' in data:
         user.last_name = data['last_name']
-    if 'phone' in data:
-        user.phone = data['phone']
+    if 'profile_image' in data:
+        user.profile_image = data['profile_image']
     
     db.session.commit()
     
-    return jsonify({"msg": "Profile updated successfully"}), 200
+    return jsonify({"msg": "Profile updated successfully", "profile_image": user.profile_image if hasattr(user, 'profile_image') else None}), 200
 
 @jwt_required()
 def delete_account():
@@ -309,3 +345,49 @@ def change_password():
     db.session.commit()
     
     return jsonify({"msg": "Password changed successfully"}), 200
+
+def resend_otp():
+    data = request.get_json()
+    email = data.get('email')
+    type_name = data.get('type') # e.g. 'signup', 'reset'
+    
+    if not email:
+        return jsonify({"msg": "Missing email"}), 400
+        
+    user = User.query.filter_by(email=email).first()
+    if not user:
+        return jsonify({"msg": "User not found"}), 404
+        
+    code = user.generate_reset_code()
+    db.session.commit()
+    
+    try:
+        msg = Message(
+            f"Verification Code",
+            recipients=[email],
+            body=f"Your verification code is: {code}"
+        )
+        mail.send(msg)
+    except Exception as e:
+        print(f"Error resending OTP: {str(e)}")
+        return jsonify({"msg": "Failed to send code", "error": str(e)}), 500
+        
+    return jsonify({"msg": "Verification code resent"}), 200
+
+def verify_otp():
+    data = request.get_json()
+    email = data.get('email')
+    token = data.get('token')
+    
+    if not email or not token:
+        return jsonify({"msg": "Missing email or code"}), 400
+        
+    user = User.verify_reset_code(email, token)
+    if not user:
+        return jsonify({"msg": "Invalid or expired code"}), 400
+        
+    return jsonify({"msg": "Code verified successfully", "user": {
+        "id": str(user.id),
+        "email": user.email,
+        "role": user.role
+    }}), 200

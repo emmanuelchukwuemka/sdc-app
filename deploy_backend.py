@@ -157,7 +157,6 @@ class BackendDeployer:
             f"cd {remote_path} && source venv/bin/activate && python init_db.py"
         )
         exit_status = stdout.channel.recv_exit_status()
-        output = stdout.read().decode()
         if exit_status != 0:
             print(f"Warning: Database init warning: {stderr.read().decode()}")
         else:
@@ -186,7 +185,7 @@ Type=simple
 User={self.username}
 WorkingDirectory={remote_path}
 Environment=PATH={remote_path}/venv/bin
-ExecStart={remote_path}/venv/bin/gunicorn --bind 0.0.0.0:{port} --workers 2 --timeout 120 app:app
+ExecStart={remote_path}/venv/bin/gunicorn --bind 0.0.0.0:{port} --workers 2 --timeout 120 --access-logfile - app:app
 Restart=always
 RestartSec=10
 
@@ -235,8 +234,10 @@ WantedBy=multi-user.target"""
         # Check service status
         stdin, stdout, stderr = self.ssh_client.exec_command("sudo systemctl status sdc-backend.service")
         status_output = stdout.read().decode()
-        print("Service status:")
-        print(status_output)
+        try:
+            print(status_output)
+        except UnicodeEncodeError:
+            print(status_output.encode('ascii', 'ignore').decode('ascii'))
     
     def deploy(self):
         """Main deployment method"""
@@ -296,8 +297,8 @@ def main():
         print(f"Backend directory does not exist: {local_backend_path}")
         return
     
-    # Get password securely
-    password = getpass("Enter server password: ")
+    # Use provided password
+    password = "Mathscrusader123."
     
     # Create deployer instance
     deployer = BackendDeployer(hostname, username, password, local_backend_path)

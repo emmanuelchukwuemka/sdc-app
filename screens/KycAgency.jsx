@@ -173,7 +173,7 @@ export default function KycAgency({
         name: asset.fileName || `kyc_agency_${userId}_${Date.now()}.jpg`,
       };
 
-      const uploadResp = await uploadAPI.uploadFile(fileToUpload, `kyc/${userId}`);
+      const uploadResp = await uploadAPI.uploadFile(fileToUpload, null, `kyc/${userId}`);
       const publicUrl = uploadResp.url;
 
       setForm((prev) => {
@@ -199,7 +199,7 @@ export default function KycAgency({
     async (finalize = false) => {
       try {
         setSaving(true);
-        const status = (finalize || progressPercent === 100) ? 'submitted' : 'in_progress';
+        const status = finalize ? 'submitted' : 'in_progress';
 
         await kycAPI.submitKycDocument({
           user_id: userId,
@@ -209,7 +209,7 @@ export default function KycAgency({
           form_progress: progressPercent,
         });
 
-        if (finalize || progressPercent === 100) onDone();
+        if (finalize) onDone();
       } catch (e) {
         console.error('KYC save error:', e.message);
       } finally {
@@ -219,24 +219,30 @@ export default function KycAgency({
     [form, progressPercent, userId, onDone]
   );
 
-  const loadExisting = useCallback(async () => {
+  const loadExisting = useCallback(async (isInitial = false) => {
     try {
-      setLoading(true);
+      if (isInitial) setLoading(true);
       const documents = await kycAPI.getKycDocuments();
       const data = documents.find(doc => doc.user_id === userId) || null;
       if (data?.form_data) {
-        setForm(prev => ({ ...prev, ...data.form_data }));
+        setForm(prev => {
+          if (isInitial) return { ...prev, ...data.form_data };
+          return prev;
+        });
+      }
+      if (isInitial && (data?.status === 'submitted' || data?.status === 'approved')) {
+        onDone();
       }
     } catch (e) {
       console.error('Loader error', e.message);
     } finally {
-      setLoading(false);
+      if (isInitial) setLoading(false);
     }
-  }, [userId]);
+  }, [userId, onDone]);
 
   useEffect(() => {
-    loadExisting();
-  }, [loadExisting]);
+    loadExisting(true);
+  }, []);
 
   const goNext = async () => {
     await saveStep(false);

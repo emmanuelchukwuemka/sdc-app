@@ -1,4 +1,5 @@
 // App.js
+import './config/env';
 import React, { useState, useCallback, useEffect } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { View, Text, StyleSheet, ActivityIndicator, Linking } from 'react-native';
@@ -56,6 +57,10 @@ import Notifications from './screens/Notifications';
 import IpDashboard from './screens/IpDashboard';
 import IpDrawerNavigator from './components/IpDrawerNavigator';
 import SurrogateDrawerNavigator from './components/SurrogateDrawerNavigator';
+import DonorDrawerNavigator from './components/DonorDrawerNavigator';
+import AgencyProfile from './screens/AgencyProfile';
+import DonorProfile from './screens/DonorProfile';
+import EditAgencyProfile from './screens/EditAgencyProfile';
 
 const BRAND_GREEN = '#16A34A';
 const Tab = createBottomTabNavigator();
@@ -159,7 +164,7 @@ export default function App() {
     // KYC check logic for authenticated users
     try {
       const kycStatus = await kycAPI.getStatus();
-      if (kycStatus && (kycStatus.status === 'approved' || (kycStatus.form_progress ?? 0) >= 100)) {
+      if (kycStatus && (kycStatus.status === 'approved' || kycStatus.status === 'submitted')) {
         setKycApproved(true);
       } else {
         setKycApproved(false);
@@ -174,33 +179,26 @@ export default function App() {
 
   // Auto-login function removed for V1 delivery
 
-  if (!ready) {
-    return (
-      <SafeAreaProvider>
-        <SplashScreen onDone={handleSplashDone} />
-      </SafeAreaProvider>
-    );
-  }
+  let content;
 
-  if (!role) {
+  if (!ready) {
+    content = <SplashScreen onDone={handleSplashDone} />;
+  } else if (!role) {
     if (showAdminLogin) {
-      return (
-        <SafeAreaProvider>
-          <AdminLogin
-            onSuccess={(profile) => {
-              setUser(profile);
-              setRole(profile.role);
-              setShowAdminLogin(false);
-            }}
-            onBack={() => {
-              setShowAdminLogin(false);
-            }}
-          />
-        </SafeAreaProvider>
+      content = (
+        <AdminLogin
+          onSuccess={(profile) => {
+            setUser(profile);
+            setRole(profile.role);
+            setShowAdminLogin(false);
+          }}
+          onBack={() => {
+            setShowAdminLogin(false);
+          }}
+        />
       );
-    }
-    return (
-      <SafeAreaProvider>
+    } else {
+      content = (
         <RoleSelection onSelect={(selected) => {
           if (selected === 'ADMIN_LOGIN') {
             setShowAdminLogin(true);
@@ -208,82 +206,49 @@ export default function App() {
             setRole(selected);
           }
         }} />
-      </SafeAreaProvider>
-    );
-  }
-
-  if (!user) {
-    // This shouldn't happen due to auto-login, but keeping for safety
+      );
+    }
+  } else if (!user) {
     if (showPasswordResetConfirm) {
-      return (
-        <SafeAreaProvider>
-          <PasswordResetConfirm
-            route={{ params: { access_token: resetToken } }}
-            onBack={() => {
-              setShowPasswordResetConfirm(false);
-              setResetToken(null);
-            }}
-          />
-        </SafeAreaProvider>
+      content = (
+        <PasswordResetConfirm
+          route={{ params: { access_token: resetToken } }}
+          onBack={() => {
+            setShowPasswordResetConfirm(false);
+            setResetToken(null);
+          }}
+        />
       );
-    }
-    if (showForgetPassword) {
-      return (
-        <SafeAreaProvider>
-          <ForgetPassword
-            onBack={() => setShowForgetPassword(false)}
-            onSuccess={() => setShowForgetPassword(false)}
-          />
-        </SafeAreaProvider>
+    } else if (showForgetPassword) {
+      content = (
+        <ForgetPassword
+          onBack={() => setShowForgetPassword(false)}
+          onSuccess={() => setShowForgetPassword(false)}
+        />
       );
-    }
-    if (showRegister) {
-      return (
-        <SafeAreaProvider>
-          <Register
-            role={role}
-            onSuccess={async (user) => {
-              setShowRegister(false);
-              if (user) {
-                // Auto-login after registration
-                // Fetch the complete profile from database
-                // Profile data now comes from registration/login flow
-                const profile = null;
-                const error = null;
-
-                if (profile && !error) {
-                  // Extract profile data from form_data
-                  const completeProfile = {
-                    id: profile.id,
-                    role: profile.role,
-                    first_name: profile.form_data?.first_name,
-                    last_name: profile.form_data?.last_name,
-                    username: profile.form_data?.username,
-                    email: profile.form_data?.email
-                  };
-                  handleLoginSuccess(completeProfile);
-                } else {
-                  // Fallback to user metadata if database fetch fails
-                  const fallbackProfile = {
-                    id: user.id,
-                    role: role,
-                    first_name: user.user_metadata?.first_name,
-                    last_name: user.user_metadata?.last_name,
-                    username: user.user_metadata?.username,
-                    email: user.email
-                  };
-                  handleLoginSuccess(fallbackProfile);
-                }
-              }
-            }}
-            onBack={() => setShowRegister(false)}
-          />
-        </SafeAreaProvider>
+    } else if (showRegister) {
+      content = (
+        <Register
+          role={role}
+          onSuccess={async (regUser) => {
+            setShowRegister(false);
+            if (regUser) {
+              const profile = {
+                id: regUser.id,
+                user_id: regUser.id,
+                role: regUser.role || role,
+                email: regUser.email,
+                first_name: regUser.first_name,
+                last_name: regUser.last_name,
+              };
+              handleLoginSuccess(profile);
+            }
+          }}
+          onBack={() => setShowRegister(false)}
+        />
       );
-    }
-
-    return (
-      <SafeAreaProvider>
+    } else {
+      content = (
         <Login
           role={role}
           onLogin={(roleArg, idArg) => handleLoginSuccess({ id: idArg, role: roleArg })}
@@ -291,69 +256,37 @@ export default function App() {
           onBack={() => setRole(null)}
           onGoForgetPassword={() => setShowForgetPassword(true)}
         />
-      </SafeAreaProvider>
-    );
-  }
-
-  // ADMIN FLOW (unchanged)
-  if (user.role === 'ADMIN') {
-    if (adminView === 'contracts')
-      return (
-        <SafeAreaProvider>
-          <AdminContracts onBack={() => setAdminView('commissions')} />
-        </SafeAreaProvider>
       );
-    if (adminView === 'console')
-      return (
-        <SafeAreaProvider>
-          <AdminConsole onBack={() => setAdminView('commissions')} />
-        </SafeAreaProvider>
+    }
+  } else if (user.role === 'ADMIN') {
+    if (adminView === 'contracts') {
+      content = <AdminContracts onBack={() => setAdminView('commissions')} />;
+    } else if (adminView === 'console') {
+      content = <AdminConsole onBack={() => setAdminView('commissions')} />;
+    } else if (adminView === 'finance') {
+      content = <AdminFinance onBack={() => setAdminView('commissions')} />;
+    } else if (adminView === 'badges') {
+      content = <AdminBadges onBack={() => setAdminView('commissions')} />;
+    } else if (adminView === 'disputes') {
+      content = <AdminDisputes onBack={() => setAdminView('commissions')} />;
+    } else if (adminView === 'reports') {
+      content = <AdminReports onBack={() => setAdminView('commissions')} />;
+    } else if (adminView === 'agencies') {
+      content = (
+        <AdminAgencies
+          onBack={() => setAdminView('commissions')}
+          onOpenAgency={(agencyId) => setAdminView({ mode: 'agencyDashboard', agencyId })}
+        />
       );
-    if (adminView === 'finance')
-      return (
-        <SafeAreaProvider>
-          <AdminFinance onBack={() => setAdminView('commissions')} />
-        </SafeAreaProvider>
+    } else if (typeof adminView === 'object' && adminView.mode === 'agencyDashboard') {
+      content = (
+        <AgencyDashboard
+          agencyId={adminView.agencyId}
+          onBack={() => setAdminView('agencies')}
+        />
       );
-    if (adminView === 'badges')
-      return (
-        <SafeAreaProvider>
-          <AdminBadges onBack={() => setAdminView('commissions')} />
-        </SafeAreaProvider>
-      );
-    if (adminView === 'disputes')
-      return (
-        <SafeAreaProvider>
-          <AdminDisputes onBack={() => setAdminView('commissions')} />
-        </SafeAreaProvider>
-      );
-    if (adminView === 'reports')
-      return (
-        <SafeAreaProvider>
-          <AdminReports onBack={() => setAdminView('commissions')} />
-        </SafeAreaProvider>
-      );
-    if (adminView === 'agencies')
-      return (
-        <SafeAreaProvider>
-          <AdminAgencies
-            onBack={() => setAdminView('commissions')}
-            onOpenAgency={(agencyId) => setAdminView({ mode: 'agencyDashboard', agencyId })}
-          />
-        </SafeAreaProvider>
-      );
-    if (typeof adminView === 'object' && adminView.mode === 'agencyDashboard')
-      return (
-        <SafeAreaProvider>
-          <AgencyDashboard
-            agencyId={adminView.agencyId}
-            onBack={() => setAdminView('agencies')}
-          />
-        </SafeAreaProvider>
-      );
-
-    return (
-      <SafeAreaProvider>
+    } else {
+      content = (
         <AdminCommissions
           onOpenContracts={() => setAdminView('contracts')}
           onOpenConsole={() => setAdminView('console')}
@@ -363,269 +296,99 @@ export default function App() {
           onOpenReports={() => setAdminView('reports')}
           onOpenAgencies={() => setAdminView('agencies')}
           onLogout={async () => {
-            // Reset to null to show role selection
             setUser(null);
             setRole(null);
-            // Logout handled by state management
           }}
         />
-      </SafeAreaProvider>
+      );
+    }
+  } else if (!kycChecked) {
+    content = (
+      <View style={styles.fallback}>
+        <ActivityIndicator size="large" color={BRAND_GREEN} />
+        <Text style={{ marginTop: 10, color: '#374151' }}>Checking your account status...</Text>
+      </View>
     );
-  }
-
-  // Show loading until KYC check completes
-  if (!kycChecked) {
-    return (
-      <SafeAreaProvider>
-        <View style={styles.fallback}>
-          <ActivityIndicator size="large" color={BRAND_GREEN} />
-          <Text style={{ marginTop: 10, color: '#374151' }}>
-            Checking your account status...
-          </Text>
-        </View>
-      </SafeAreaProvider>
-    );
-  }
-
-  // Role-based KYC flow
-  if (!kycApproved) {
+  } else if (!kycApproved) {
     const currentUserId = user?.id;
     if (user.role === 'SURROGATE') {
-      return (
-        <SafeAreaProvider>
-          <KycSurrogate
-            userId={currentUserId}
-            onSkip={() => setKycApproved(true)}
-            onDone={async () => {
-              // KYC completion handled by API service
-              setKycApproved(true);
-            }}
-          />
-        </SafeAreaProvider>
-      );
+      content = <KycSurrogate userId={currentUserId} onSkip={() => setKycApproved(true)} onDone={async () => setKycApproved(true)} />;
+    } else if (user.role === 'DONOR') {
+      content = <KycDonor userId={currentUserId} onSkip={() => setKycApproved(true)} onDone={async () => setKycApproved(true)} />;
+    } else if (user.role === 'IP') {
+      content = <KycIntendingParent userId={currentUserId} onSkip={() => setKycApproved(true)} onDone={async () => setKycApproved(true)} />;
+    } else if (user.role === 'AGENCY') {
+      content = <KycAgency userId={currentUserId} onSkip={() => setKycApproved(true)} onDone={async () => setKycApproved(true)} />;
     }
-    if (user.role === 'DONOR') {
-      return (
-        <SafeAreaProvider>
-          <KycDonor
-            userId={currentUserId}
-            onSkip={() => setKycApproved(true)}
-            onDone={async () => {
-              // KYC completion handled by API service
-              setKycApproved(true);
-            }}
-          />
-        </SafeAreaProvider>
-      );
-    }
-    if (user.role === 'IP') {
-      return (
-        <SafeAreaProvider>
-          <KycIntendingParent
-            userId={currentUserId}
-            onSkip={() => setKycApproved(true)}
-            onDone={async () => {
-              // KYC completion handled by API service
-              // ✅ IP now goes to IpDashboard after KYC
-              setKycApproved(true);
-            }}
-          />
-        </SafeAreaProvider>
-      );
-    }
-    if (user.role === 'AGENCY') {
-      return (
-        <SafeAreaProvider>
-          <KycAgency
-            userId={currentUserId}
-            onSkip={() => setKycApproved(true)}
-            onDone={async () => {
-              // KYC completion handled by API service
-              setKycApproved(true);
-            }}
-          />
-        </SafeAreaProvider>
-      );
-    }
-  }
-
-  // Agency subscription gate (after KYC complete)
-  if (user.role === 'AGENCY' && !subscription) {
-    return (
-      <SafeAreaProvider>
-        <AgencySubscription
-          userId={user.id}
-          onSelect={(plan) => setSubscription(plan)}
-        />
-      </SafeAreaProvider>
+  } else if (user.role === 'AGENCY' && !subscription) {
+    content = <AgencySubscription userId={user.id} onSelect={(plan) => setSubscription(plan)} />;
+  } else if (user.role === 'AGENCY' && subscription) {
+    content = (
+      <NavigationContainer>
+        <Stack.Navigator screenOptions={{ headerShown: false }}>
+          <Stack.Screen name="AgencyDashboard">
+            {(props) => (
+              <AgencyDashboard
+                {...props}
+                agencyId={user.id}
+                onBack={() => {
+                  setUser(null);
+                  setRole(null);
+                }}
+              />
+            )}
+          </Stack.Screen>
+          <Stack.Screen name="AgencyProfile" component={AgencyProfile} />
+          <Stack.Screen name="EditAgencyProfile" component={EditAgencyProfile} />
+        </Stack.Navigator>
+      </NavigationContainer>
     );
-  }
-
-  if (user.role === 'AGENCY' && subscription) {
-    return (
-      <SafeAreaProvider>
-        <AgencyDashboard
-          agencyId={user.id}
-          onBack={() => {
+  } else if (user.role === 'SURROGATE' && kycApproved) {
+    content = (
+      <NavigationContainer>
+        <SurrogateDrawerNavigator
+          userId={user.id}
+          onLogout={async () => {
+            setUser(null);
+            setRole(null);
+            setKycApproved(false);
+          }}
+        />
+      </NavigationContainer>
+    );
+  } else if (user.role === 'IP' && kycApproved) {
+    content = (
+      <NavigationContainer>
+        <IpDrawerNavigator
+          userId={user.id}
+          onLogout={async () => {
             setUser(null);
             setRole(null);
           }}
         />
-      </SafeAreaProvider>
+      </NavigationContainer>
+    );
+  } else if (user.role === 'DONOR' && kycApproved) {
+    content = (
+      <NavigationContainer>
+        <DonorDrawerNavigator
+          userId={user.id}
+          onLogout={async () => {
+            setUser(null);
+            setRole(null);
+            setKycApproved(false);
+          }}
+        />
+      </NavigationContainer>
     );
   }
 
-  const currentUserId = user?.id;
-
-  // ✅ Surrogate Flow (uses SurrogateDrawerNavigator directly)
-  if (user.role === 'SURROGATE' && kycApproved) {
-    return (
-      <SafeAreaProvider>
-        <NavigationContainer>
-          <SurrogateDrawerNavigator
-            userId={currentUserId}
-            onLogout={async () => {
-              // Reset to null to show role selection
-              setUser(null);
-              setRole(null);
-              setKycApproved(false); // Reset KYC too if they logout
-              // Logout handled by state management
-            }}
-          />
-        </NavigationContainer>
-      </SafeAreaProvider>
-    );
-  }
-
-  // Non-surrogate main flow (Donor, IP)
-  if (user.role === 'IP' && kycApproved) {
-    return (
-      <SafeAreaProvider>
-        <NavigationContainer>
-          <IpDrawerNavigator
-            userId={currentUserId}
-            onLogout={async () => {
-              // Reset to null to show role selection
-              setUser(null);
-              setRole(null);
-              // Logout handled by state management
-            }}
-          />
-        </NavigationContainer>
-      </SafeAreaProvider>
-    );
-  }
-
-  if (user.role === 'DONOR' && kycApproved) {
-    return (
-      <SafeAreaProvider>
-        <NavigationContainer>
-          <Stack.Navigator screenOptions={{ headerShown: false }}>
-            <Stack.Screen name="DonorTabs">
-              {() => (
-                <Tab.Navigator
-                  screenOptions={({ route }) => ({
-                    tabBarActiveTintColor: BRAND_GREEN,
-                    tabBarInactiveTintColor: '#9CA3AF',
-                    tabBarStyle: { height: 62, paddingBottom: 8, paddingTop: 6 },
-                    tabBarLabelStyle: { fontWeight: '700', fontSize: 12 },
-                    tabBarIcon: ({ color, focused }) => {
-                      let name = 'ellipse';
-                      switch (route.name) {
-                        case 'Home':
-                          name = focused ? 'home' : 'home-outline';
-                          break;
-                        case 'Dashboard':
-                          name = focused ? 'speedometer' : 'speedometer-outline';
-                          break;
-                        case 'Wallet':
-                          name = focused ? 'card' : 'card-outline';
-                          break;
-                        case 'Chat':
-                          name = focused ? 'chatbubbles' : 'chatbubbles-outline';
-                          break;
-                      }
-                      return <Ionicons name={name} size={22} color={color} />;
-                    },
-                  })}
-                  initialRouteName="Dashboard"
-                >
-                  <Tab.Screen
-                    name="Home"
-                    component={Marketplace}
-                    options={{ title: 'Market' }}
-                    initialParams={{ userId: currentUserId }}
-                  />
-
-                  <Tab.Screen
-                    name="Dashboard"
-                    component={require('./screens/DonorDashboard').default}
-                    options={{
-                      title: 'Dashboard',
-                      headerRight: () => (
-                        <Ionicons
-                          name="log-out-outline"
-                          size={24}
-                          color={BRAND_GREEN}
-                          style={{ marginRight: 10 }}
-                          onPress={() => {
-                            // Trigger logout function
-                            try {
-                              setUser(null);
-                              setRole(null);
-                              if (user?.role === 'ADMIN') {
-                                // Logout handled by state management
-                              }
-                            } catch (e) {
-                              console.log('Logout error', e?.message || e);
-                            }
-                          }}
-                        />
-                      )
-                    }}
-                    initialParams={{ role: user.role, userId: currentUserId }}
-                  />
-
-                  <Tab.Screen name="Wallet" options={{ title: 'Wallet' }}>
-                    {({ navigation }) => (
-                      <Wallet userId={currentUserId} onBack={() => navigation.goBack()} />
-                    )}
-                  </Tab.Screen>
-
-                  <Tab.Screen name="Chat" options={{ title: 'Chat' }}>
-                    {({ navigation }) => (
-                      <Chat
-                        userId={currentUserId}
-                        onBack={() => navigation.goBack()}
-                        conversationId="dddddddd-dddd-dddd-dddd-dddddddddddd"
-                      />
-                    )}
-                  </Tab.Screen>
-                </Tab.Navigator>
-              )}
-            </Stack.Screen>
-
-            {/* Screens accessible from Dashboard */}
-            <Stack.Screen name="DonorKycWizard" component={DonorKycWizard} />
-            <Stack.Screen name="Profile">
-              {(props) => (
-                <Profile
-                  {...props}
-                  onLogout={() => {
-                    setUser(null);
-                    setRole(null);
-                    setKycApproved(false);
-                    // Logout handled by state management
-                  }}
-                />
-              )}
-            </Stack.Screen>
-
-          </Stack.Navigator>
-        </NavigationContainer>
-      </SafeAreaProvider>
-    );
-  }
+  return (
+    <SafeAreaProvider>
+      <View style={{ flex: 1 }}>{content}</View>
+      <StatusBar style="auto" />
+    </SafeAreaProvider>
+  );
 }
 
 const styles = StyleSheet.create({

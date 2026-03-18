@@ -1,11 +1,14 @@
 // components/DonorDrawerNavigator.jsx
 import React, { useEffect, useState } from 'react';
 import { createDrawerNavigator } from '@react-navigation/drawer';
+import { Ionicons } from '@expo/vector-icons';
 import CustomDrawerContent from './CustomDrawerContent';
 import SurrogateNavigator from './SurrogateNavigator'; // reuse bottom tabs for now
-import SurrogateProfile from '../screens/SurrogateProfile';
+import DonorProfile from '../screens/DonorProfile';
+import EditDonorProfile from '../screens/EditDonorProfile';
 import Wallet from '../screens/Wallet';
 import Notifications from '../screens/Notifications';
+import Dispute from '../screens/Dispute';
 
 const Drawer = createDrawerNavigator();
 
@@ -46,13 +49,31 @@ export default function DonorDrawerNavigator({ userId, onLogout }) {
         {() => <SurrogateNavigator userId={userId} onLogout={onLogout} />}
       </Drawer.Screen>
       <Drawer.Screen name="My Profile">
-        {() => <SurrogateProfile userId={userId} />}
+        {() => <DonorProfile userId={userId} />}
       </Drawer.Screen>
+      <Drawer.Screen
+        name="EditDonorProfile"
+        component={EditDonorProfile}
+        initialParams={{ userId }}
+        options={{
+          drawerItemStyle: { display: 'none' } // Hide from drawer menu but keep in stack
+        }}
+      />
       <Drawer.Screen name="Wallet">
         {() => <Wallet userId={userId} />}
       </Drawer.Screen>
       <Drawer.Screen name="Notifications">
         {() => <Notifications userId={userId} />}
+      </Drawer.Screen>
+      <Drawer.Screen
+        name="Support"
+        options={{
+          drawerIcon: ({ color, size }) => (
+            <Ionicons name="headset-outline" size={size || 20} color={color} />
+          ),
+        }}
+      >
+        {(props) => <Dispute {...props} userId={userId} role="DONOR" />}
       </Drawer.Screen>
     </Drawer.Navigator>
   );

@@ -1,6 +1,6 @@
 from flask import request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from ..models import db, MarketplaceUnlock, CommissionSetting, Surrogate, SurrogateProfile
+from ..models import db, MarketplaceUnlock, CommissionSetting, Surrogate, SurrogateProfile, User, KycDocument
 
 def get_surrogates():
     """Get all available surrogates for marketplace"""
@@ -93,3 +93,42 @@ def update_commission_settings():
         
     db.session.commit()
     return jsonify({"msg": "Commission setting updated"}), 200
+
+@jwt_required()
+def get_marketplace_profile(user_id):
+    """Unified endpoint to get full user profile including KYC data"""
+    user = User.query.get(user_id)
+    if not user:
+        return jsonify({"msg": "User not found"}), 404
+        
+    kyc = KycDocument.query.filter_by(user_id=user_id).first()
+    
+    # Base user data
+    result = {
+        "user": {
+            "id": str(user.id),
+            "first_name": user.first_name,
+            "last_name": user.last_name,
+            "email": user.email,
+            "role": user.role,
+            "profile_image": user.profile_image if hasattr(user, 'profile_image') else None
+        },
+        "kyc": {
+            "status": kyc.status if kyc else None,
+            "form_data": kyc.form_data if kyc else {}
+        }
+    }
+    
+    # Try to find role-specific profile info
+    if user.role == 'SURROGATE':
+        surrogate = Surrogate.query.filter_by(user_id=user_id).first()
+        if surrogate:
+            profile = SurrogateProfile.query.filter_by(surrogate_id=surrogate.id).first()
+            if profile:
+                result["profile"] = {
+                    "bio": profile.bio,
+                    "location": profile.location,
+                    "occupation": profile.occupation
+                }
+    
+    return jsonify(result), 200

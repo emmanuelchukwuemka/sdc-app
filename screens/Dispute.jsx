@@ -11,8 +11,10 @@ import {
   ScrollView,
   KeyboardAvoidingView,
   Platform,
+  Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import { disputesAPI } from '../services/api';
 import { LinearGradient } from 'expo-linear-gradient';
 
@@ -103,6 +105,28 @@ export default function Dispute({ route, navigation }) {
                   <Text style={styles.categoryLabel}>{cat.label}</Text>
                 </TouchableOpacity>
               ))}
+            </View>
+          </View>
+
+          {/* Call Support Section */}
+          <View style={styles.callSection}>
+            <Text style={styles.sectionTitle}>Direct Assistance</Text>
+            <View style={styles.callCard}>
+              <View style={styles.callInfo}>
+                <View style={styles.callIconBox}>
+                  <Ionicons name="call-outline" size={22} color={BRAND_GREEN} />
+                </View>
+                <View style={{ marginLeft: 12 }}>
+                  <Text style={styles.callLabel}>Official Support Line</Text>
+                  <Text style={styles.callNumber}>09016246947</Text>
+                </View>
+              </View>
+              <TouchableOpacity
+                style={styles.callBtn}
+                onPress={() => Linking.openURL('tel:09016246947')}
+              >
+                <Text style={styles.callBtnText}>Call Now</Text>
+              </TouchableOpacity>
             </View>
           </View>
 
@@ -263,4 +287,39 @@ const styles = StyleSheet.create({
 
   footerInfo: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: 16 },
   footerText: { fontSize: 12, color: '#6B7280', fontWeight: '500' },
+
+  // Call Section
+  callSection: { paddingHorizontal: 24, marginBottom: 30 },
+  callCard: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    shadowColor: '#000',
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    elevation: 2,
+    borderWidth: 1,
+    borderColor: '#F3F4F6',
+  },
+  callInfo: { flexDirection: 'row', alignItems: 'center' },
+  callIconBox: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#F0FDF4',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  callLabel: { fontSize: 12, color: '#6B7280', fontWeight: '600' },
+  callNumber: { fontSize: 16, color: '#111827', fontWeight: '800' },
+  callBtn: {
+    backgroundColor: '#16A34A',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 10,
+  },
+  callBtnText: { color: '#fff', fontSize: 13, fontWeight: '700' },
 });

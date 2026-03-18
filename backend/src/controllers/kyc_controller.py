@@ -39,10 +39,21 @@ def submit_kyc_document():
     existing_kyc = KycDocument.query.filter_by(user_id=user_id).first()
     if existing_kyc:
         # Update existing document
-        existing_kyc.form_data = data.get('form_data', existing_kyc.form_data)
+        form_data = data.get('form_data', existing_kyc.form_data)
+        existing_kyc.form_data = form_data
         existing_kyc.form_progress = data.get('form_progress', existing_kyc.form_progress)
         existing_kyc.status = data.get('status', existing_kyc.status)
         existing_kyc.file_url = data.get('file_url', existing_kyc.file_url)
+        
+        # Sync name with User model if present
+        if isinstance(form_data, dict):
+            user = User.query.filter_by(id=user_id).first()
+            if user:
+                if 'first_name' in form_data:
+                    user.first_name = form_data['first_name']
+                if 'last_name' in form_data:
+                    user.last_name = form_data['last_name']
+        
         db.session.commit()
         return jsonify({"msg": "KYC document updated", "id": str(existing_kyc.id)}), 200
     else:
@@ -51,14 +62,23 @@ def submit_kyc_document():
         if not user:
             return jsonify({"msg": "User not found"}), 404
             
+        form_data = data.get('form_data', {})
         new_kyc = KycDocument(
             user_id=user_id,
             role=user.role,
-            form_data=data.get('form_data', {}),
+            form_data=form_data,
             form_progress=data.get('form_progress', 0),
             status=data.get('status', 'in_progress'),
             file_url=data.get('file_url')
         )
+        
+        # Sync name with User model if present
+        if isinstance(form_data, dict):
+            if 'first_name' in form_data:
+                user.first_name = form_data['first_name']
+            if 'last_name' in form_data:
+                user.last_name = form_data['last_name']
+        
         db.session.add(new_kyc)
         db.session.commit()
         return jsonify({"msg": "KYC document created", "id": str(new_kyc.id)}), 201

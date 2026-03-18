@@ -5,7 +5,7 @@ import urllib.error
 import json
 import sys
 
-BASE_URL = "http://72.62.4.119:5000"
+BASE_URL = "https://surrogateanddonorconnect.com"
 
 def make_request(endpoint, method="GET", data=None):
     url = f"{BASE_URL}{endpoint}"

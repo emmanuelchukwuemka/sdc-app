@@ -1,16 +1,16 @@
 // services/api-config.js
 // Utility for configuring API endpoints at runtime
 
-let currentApiUrl = 'http://72.62.4.119:5000'; // Localhost server endpoint
-let currentApiBasePath = '/api';
+let currentApiUrl = process.env.EXPO_PUBLIC_API_URL || 'https://surrogateanddonorconnect.com'; // Default to production domain
+let currentApiBasePath = process.env.EXPO_PUBLIC_API_PATH || '/api';
 
 export const getApiBaseUrl = () => {
   return `${currentApiUrl}${currentApiBasePath}`;
 };
 
 export const setApiConfig = (apiUrl, apiBasePath = '/api') => {
-  currentApiUrl = apiUrl;
-  currentApiBasePath = apiBasePath;
+  if (apiUrl) currentApiUrl = apiUrl;
+  if (apiBasePath) currentApiBasePath = apiBasePath;
   console.log(`API configuration updated to: ${getApiBaseUrl()}`);
 };
 

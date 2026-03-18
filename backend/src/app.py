@@ -5,12 +5,12 @@ import os
 if __package__ is None or __package__ == '':
     # Running as script - add parent to path
     sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-    from src.models import db
+    from src.models import db, mail
     from src.config import Config
     from src.controllers import auth_bp, user_bp, kyc_bp, marketplace_bp, agency_bp, favorites_bp, badge_bp, admin_bp, wallet_bp, notification_bp, messages_bp, upload_bp
 else:
     # Running as package
-    from .models import db
+    from .models import db, mail
     from .config import Config
     from .controllers import auth_bp, user_bp, kyc_bp, marketplace_bp, agency_bp, favorites_bp, badge_bp, admin_bp, wallet_bp, notification_bp, messages_bp, upload_bp
 
@@ -34,6 +34,7 @@ def create_app(config_class=None):
     CORS(app)
     db.init_app(app)
     jwt = JWTManager(app)
+    mail.init_app(app)
     socketio = SocketIO(app, cors_allowed_origins="*")
     
     app.register_blueprint(auth_bp, url_prefix='/api/auth')

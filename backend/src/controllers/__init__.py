@@ -2,11 +2,12 @@ from flask import Blueprint
 from .auth_controller import (
     register, login, get_current_user, reset_password, update_password,
     logout, refresh, forgot_password, reset_password_with_token,
-    verify_email, get_profile, update_profile, delete_account, change_password
+    verify_email, get_profile, update_profile, delete_account, change_password,
+    resend_otp, verify_otp
 )
 from .user_controller import get_users, get_user
 from .kyc_controller import get_kyc_status, get_kyc_documents, submit_kyc_document
-from .marketplace_controller import get_unlocks, unlock_profile, get_commission_settings, update_commission_settings, get_surrogates, get_surrogate_by_id
+from .marketplace_controller import get_unlocks, unlock_profile, get_commission_settings, update_commission_settings, get_surrogates, get_surrogate_by_id, get_marketplace_profile
 from .agency_controller import get_agencies, get_agency, get_agency_roster, get_agency_subscription, get_agency_wallet
 from .favorite_controller import get_favorites, add_favorite, remove_favorite
 from .badge_controller import get_badges
@@ -34,9 +35,12 @@ auth_bp.add_url_rule('/profile', view_func=delete_account, methods=['DELETE'])
 auth_bp.add_url_rule('/change-password', view_func=change_password, methods=['POST'])
 auth_bp.add_url_rule('/forgot-password', view_func=forgot_password, methods=['POST'])
 auth_bp.add_url_rule('/reset-password', view_func=reset_password, methods=['POST', 'PUT'])
+auth_bp.add_url_rule('/reset-password-with-code', view_func=reset_password_with_token, methods=['POST'])
 auth_bp.add_url_rule('/update-password', view_func=update_password, methods=['POST'])
 auth_bp.add_url_rule('/verify-email', view_func=verify_email, methods=['GET'])
 auth_bp.add_url_rule('/verify-email/<token>', view_func=verify_email, methods=['GET'])
+auth_bp.add_url_rule('/resend-otp', view_func=resend_otp, methods=['POST'])
+auth_bp.add_url_rule('/verify-otp', view_func=verify_otp, methods=['POST'])
 
 # User Blueprint
 user_bp = Blueprint('users', __name__)
@@ -53,6 +57,7 @@ kyc_bp.add_url_rule('/documents', view_func=submit_kyc_document, methods=['POST'
 marketplace_bp = Blueprint('marketplace', __name__)
 marketplace_bp.add_url_rule('/surrogates', view_func=get_surrogates, methods=['GET'])
 marketplace_bp.add_url_rule('/surrogates/<surrogate_id>', view_func=get_surrogate_by_id, methods=['GET'])
+marketplace_bp.add_url_rule('/profile/<user_id>', view_func=get_marketplace_profile, methods=['GET'])
 marketplace_bp.add_url_rule('/unlocks', view_func=get_unlocks, methods=['GET'])
 marketplace_bp.add_url_rule('/unlock', view_func=unlock_profile, methods=['POST'])
 marketplace_bp.add_url_rule('/commission-settings', view_func=get_commission_settings, methods=['GET'])

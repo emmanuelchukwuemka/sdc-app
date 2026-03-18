@@ -1,4 +1,4 @@
-// screens/EditSurrogateProfile.jsx
+// screens/EditIpProfile.jsx
 import React, { useState } from 'react';
 import {
   View,
@@ -16,7 +16,7 @@ import { kycAPI } from '../services/api';
 const BRAND_GREEN = '#16A34A';
 const BORDER = '#E5E7EB';
 
-export default function EditSurrogateProfile({ navigation, route }) {
+export default function EditIpProfile({ navigation, route }) {
   const { userId, formData } = route.params || {};
   const [personal, setPersonal] = useState(formData?.personal || {});
 
@@ -26,27 +26,23 @@ export default function EditSurrogateProfile({ navigation, route }) {
 
   const handleSave = async () => {
     try {
-      // Fetch existing document first to avoid overwriting other fields
       const documents = await kycAPI.getKycDocuments();
       const existing = documents.find(doc => doc.user_id === userId) || {};
 
       const updatedForm = {
         ...(existing.form_data || {}),
         personal: personal,
-        // Ensure first_name and last_name are at the root of form_data too for the profile header
         first_name: personal.first_name || (existing.form_data || {}).first_name,
-        last_name: personal.surname || personal.last_name || (existing.form_data || {}).last_name,
+        last_name: personal.surname || (existing.form_data || {}).last_name,
       };
 
-      // If the document was already submitted or approved, keep it that way.
-      // Otherwise, if we are editing, we are likely still in 'submitted' or 'approved' state if they could see the edit button.
       const newStatus = existing.status === 'approved' ? 'approved' : 'submitted';
 
       await kycAPI.submitKycDocument({
         user_id: userId,
-        role: existing.role || 'SURROGATE',
+        role: existing.role || 'IP',
         form_data: updatedForm,
-        form_progress: 100, // Editing a "saved" profile should maintain 100% progress
+        form_progress: 100,
         status: newStatus
       });
 
@@ -59,7 +55,6 @@ export default function EditSurrogateProfile({ navigation, route }) {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: '#fff' }} edges={['top', 'bottom']}>
-      {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Ionicons name="arrow-back" size={22} color="#fff" />
@@ -68,9 +63,8 @@ export default function EditSurrogateProfile({ navigation, route }) {
         <View style={{ width: 24 }} />
       </View>
 
-      {/* Form */}
       <ScrollView contentContainerStyle={{ padding: 16 }}>
-        {['first_name', 'middle_name', 'surname', 'email', 'phone1', 'dob', 'home_address'].map(
+        {['first_name', 'surname', 'email', 'phone1', 'dob', 'home_address'].map(
           (field) => (
             <View key={field} style={styles.inputWrap}>
               <Text style={styles.label}>{field.replace('_', ' ')}</Text>

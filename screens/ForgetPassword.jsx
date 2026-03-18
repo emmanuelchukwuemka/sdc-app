@@ -22,8 +22,17 @@ const ACCENT_WHITE = '#FFFFFF';
 const GRAY = '#6B7280';
 
 export default function ForgetPassword({ onBack, onSuccess }) {
+  const [step, setStep] = useState(1); // 1: Email, 2: Code & New Password
   const [email, setEmail] = useState('');
+  const [code, setCode] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  
   const [emailError, setEmailError] = useState('');
+  const [codeError, setCodeError] = useState('');
+  const [passwordError, setPasswordError] = useState('');
+  const [confirmError, setConfirmError] = useState('');
+  
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
 
@@ -55,16 +64,16 @@ export default function ForgetPassword({ onBack, onSuccess }) {
 
   const handleEmailChange = (text) => {
     setEmail(text);
-    // Clear error when user starts typing
-    if (emailError) {
-      setEmailError('');
-    }
+    if (emailError) setEmailError('');
   };
 
-  const handleResetPassword = async () => {
-    // Validate email format
+  const handleGetCode = async () => {
+    console.log('--- ForgetPassword Step 1: Requesting Code ---');
+    console.log('Email:', email);
+    
     const emailValidationError = validateEmailField(email);
     if (emailValidationError) {
+      console.log('Validation Error:', emailValidationError);
       setEmailError(emailValidationError);
       return;
     }
@@ -76,21 +85,59 @@ export default function ForgetPassword({ onBack, onSuccess }) {
 
     try {
       setLoading(true);
+      console.log('Calling authAPI.resetPassword...');
+      const response = await authAPI.resetPassword(email);
+      console.log('API Response:', response);
+      setStep(2);
+      showAlert(
+        'Code Sent',
+        'A 6-digit reset code has been sent to your email. Please check your inbox.',
+        'success'
+      );
+    } catch (err) {
+      console.error('API Error:', err.response?.data || err.message);
+      showAlert('Request Failed', err.response?.data?.msg || err.message || 'Failed to send reset code. Please try again.', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
 
-      // Reset password via Flask API
-      await authAPI.resetPassword(email);
+  const handleResetPassword = async () => {
+    console.log('--- ForgetPassword Step 2: Resetting Password ---');
+    console.log('Email:', email);
+    console.log('Code:', code);
+    
+    if (!code || code.length !== 6) {
+      console.log('Code Validation Error: Invalid code length');
+      setCodeError('Please enter the 6-digit code');
+      return;
+    }
+    if (newPassword.length < 6) {
+      console.log('Password Validation Error: Too short');
+      setPasswordError('Password must be at least 6 characters');
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      console.log('Password Validation Error: Passwords do not match');
+      setConfirmError('Passwords do not match');
+      return;
+    }
 
-      // Success - show success message
+    try {
+      setLoading(true);
+      console.log('Calling authAPI.resetPasswordWithCode...');
+      const response = await authAPI.resetPasswordWithCode(email, code, newPassword);
+      console.log('API Response:', response);
       setSuccess(true);
       showAlert(
-        'Password Reset Email Sent',
-        'Check your email for instructions to reset your password. The link will expire in 24 hours.',
+        'Success',
+        'Your password has been reset successfully. You can now log in.',
         'success',
         onBack
       );
-
     } catch (err) {
-      showAlert('Reset Failed', err.message || 'Failed to send reset email. Please try again.', 'error');
+      console.error('API Error:', err.response?.data || err.message);
+      showAlert('Reset Failed', err.response?.data?.msg || err.message || 'Failed to reset password. Please try again.', 'error');
     } finally {
       setLoading(false);
     }
@@ -107,47 +154,121 @@ export default function ForgetPassword({ onBack, onSuccess }) {
           <ScrollView contentContainerStyle={styles.scrollContent}>
             {/* Header */}
             <View style={styles.header}>
-              <TouchableOpacity onPress={onBack} style={styles.backButton}>
+              <TouchableOpacity onPress={step === 1 ? onBack : () => setStep(1)} style={styles.backButton}>
                 <Ionicons name="arrow-back" size={24} color="#fff" />
               </TouchableOpacity>
               <Text style={styles.title}>Reset Password</Text>
             </View>
 
-            {/* Instructions */}
-            <Text style={styles.instructions}>
-              Enter your email address and we'll send you instructions to reset your password.
-            </Text>
-
-            {/* Email Input */}
-            <View style={styles.inputContainer}>
-              <Text style={styles.label}>Email Address</Text>
-              <TextInput
-                style={[styles.input, emailError && styles.inputError]}
-                placeholder="Enter your email"
-                placeholderTextColor={GRAY}
-                value={email}
-                onChangeText={handleEmailChange}
-                keyboardType="email-address"
-                autoCapitalize="none"
-                autoComplete="email"
-              />
-              {emailError && <Text style={styles.errorText}>{emailError}</Text>}
-            </View>
-
-            {/* Reset Button */}
-            <TouchableOpacity
-              style={[styles.resetBtn, loading && styles.resetBtnDisabled]}
-              onPress={handleResetPassword}
-              disabled={loading || success}
-            >
-              {loading ? (
-                <ActivityIndicator color="#fff" />
-              ) : (
-                <Text style={styles.resetText}>
-                  {success ? 'Email Sent!' : 'Send Reset Instructions'}
+            {step === 1 ? (
+              <>
+                {/* Instructions */}
+                <Text style={styles.instructions}>
+                  Enter your email address and we'll send you a 6-digit code to reset your password.
                 </Text>
-              )}
-            </TouchableOpacity>
+
+                {/* Email Input */}
+                <View style={styles.inputContainer}>
+                  <Text style={styles.label}>Email Address</Text>
+                  <TextInput
+                    style={[styles.input, emailError && styles.inputError]}
+                    placeholder="Enter your email"
+                    placeholderTextColor={GRAY}
+                    value={email}
+                    onChangeText={handleEmailChange}
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                    autoComplete="email"
+                  />
+                  {emailError && <Text style={styles.errorText}>{emailError}</Text>}
+                </View>
+
+                {/* Get Code Button */}
+                <TouchableOpacity
+                  style={[styles.resetBtn, loading && styles.resetBtnDisabled]}
+                  onPress={handleGetCode}
+                  disabled={loading}
+                >
+                  {loading ? (
+                    <ActivityIndicator color="#16A34A" />
+                  ) : (
+                    <Text style={styles.resetText}>Get Code</Text>
+                  )}
+                </TouchableOpacity>
+              </>
+            ) : (
+              <>
+                {/* Instructions */}
+                <Text style={styles.instructions}>
+                  Enter the 6-digit code sent to {email} and your new password.
+                </Text>
+
+                {/* Code Input */}
+                <View style={styles.inputContainer}>
+                  <Text style={styles.label}>Reset Code</Text>
+                  <TextInput
+                    style={[styles.input, codeError && styles.inputError]}
+                    placeholder="6-digit code"
+                    placeholderTextColor={GRAY}
+                    value={code}
+                    onChangeText={(text) => {
+                      setCode(text);
+                      if (codeError) setCodeError('');
+                    }}
+                    keyboardType="numeric"
+                    maxLength={6}
+                  />
+                  {codeError && <Text style={styles.errorText}>{codeError}</Text>}
+                </View>
+
+                {/* New Password Input */}
+                <View style={styles.inputContainer}>
+                  <Text style={styles.label}>New Password</Text>
+                  <TextInput
+                    style={[styles.input, passwordError && styles.inputError]}
+                    placeholder="New password (min 6 chars)"
+                    placeholderTextColor={GRAY}
+                    value={newPassword}
+                    onChangeText={(text) => {
+                      setNewPassword(text);
+                      if (passwordError) setPasswordError('');
+                    }}
+                    secureTextEntry
+                  />
+                  {passwordError && <Text style={styles.errorText}>{passwordError}</Text>}
+                </View>
+
+                {/* Confirm Password Input */}
+                <View style={styles.inputContainer}>
+                  <Text style={styles.label}>Confirm New Password</Text>
+                  <TextInput
+                    style={[styles.input, confirmError && styles.inputError]}
+                    placeholder="Confirm new password"
+                    placeholderTextColor={GRAY}
+                    value={confirmPassword}
+                    onChangeText={(text) => {
+                      setConfirmPassword(text);
+                      if (confirmError) setConfirmError('');
+                    }}
+                    secureTextEntry
+                  />
+                  {confirmError && <Text style={styles.errorText}>{confirmError}</Text>}
+                </View>
+
+                {/* Reset Password Button */}
+                <TouchableOpacity
+                  style={[styles.resetBtn, loading && styles.resetBtnDisabled]}
+                  onPress={handleResetPassword}
+                  disabled={loading}
+                >
+                  {loading ? (
+                    <ActivityIndicator color="#16A34A" />
+                  ) : (
+                    <Text style={styles.resetText}>Reset Password</Text>
+                  )}
+                </TouchableOpacity>
+              </>
+            )}
 
             {/* Back to Login */}
             <TouchableOpacity onPress={onBack} style={styles.backToLoginContainer}>

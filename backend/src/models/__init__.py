@@ -1,4 +1,5 @@
 from flask_sqlalchemy import SQLAlchemy
+from flask_mail import Mail
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy import TypeDecorator, String
 import uuid
@@ -35,6 +36,7 @@ class JSONType(TypeDecorator):
         return value
 
 db = SQLAlchemy()
+mail = Mail()
 
 class Agency(db.Model):
     __tablename__ = 'agencies'
@@ -71,10 +73,30 @@ class User(db.Model):
     password_hash = db.Column(db.String(255))
     first_name = db.Column(db.String(255))
     last_name = db.Column(db.String(255))
+    profile_image = db.Column(db.String(500))
     is_verified = db.Column(db.Boolean, default=False)
     is_active = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
+    # Password reset fields
+    reset_code = db.Column(db.String(6))
+    reset_code_expires_at = db.Column(db.DateTime)
+    
+    def generate_reset_code(self):
+        import random
+        import string
+        from datetime import timedelta
+        self.reset_code = ''.join(random.choices(string.digits, k=6))
+        self.reset_code_expires_at = datetime.utcnow() + timedelta(minutes=15)
+        return self.reset_code
+
+    @staticmethod
+    def verify_reset_code(email, code):
+        user = User.query.filter_by(email=email).first()
+        if user and user.reset_code == code and user.reset_code_expires_at > datetime.utcnow():
+            return user
+        return None
+
     def get_reset_token(self):
         # Simple token based on user id (in production, use proper JWT or secure token)
         import base64

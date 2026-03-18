@@ -9,9 +9,10 @@ import {
 } from 'react-native';
 import { DrawerContentScrollView } from '@react-navigation/drawer';
 import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { authAPI } from '../services/api';
 
-const FALLBACK_AVATAR = require('../assets/avatar.png');
+const FALLBACK_AVATAR = require('../assets/logo.png');
 
 export default function CustomDrawerContent(props) {
   const { userId, role, profile, onLogout, isIpFlow, isSurrogateFlow } = props;

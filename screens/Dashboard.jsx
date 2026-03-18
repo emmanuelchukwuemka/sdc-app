@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   ScrollView,
   Animated,
+  Linking,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -171,6 +172,21 @@ export default function IpDashboard({ route, navigation }) {
             onPress={() => navigation.navigate('Chat')}
           >
             <Text style={styles.cardBtnOutlineText}>Open Chat</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Support Section */}
+        <View style={styles.card}>
+          <View style={styles.cardHeader}>
+            <Ionicons name="call-outline" size={20} color={BRAND_GREEN} />
+            <Text style={styles.cardTitle}>Support</Text>
+          </View>
+          <Text style={styles.cardText}>Need assistance? Our team is here to help.</Text>
+          <TouchableOpacity
+            style={styles.cardBtnOutline}
+            onPress={() => Linking.openURL('tel:09016246947')}
+          >
+            <Text style={styles.cardBtnOutlineText}>Call Support</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>

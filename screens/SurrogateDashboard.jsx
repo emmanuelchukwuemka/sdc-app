@@ -8,6 +8,7 @@ import {
   ScrollView,
   Animated,
   Alert,
+  Linking,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -212,7 +213,10 @@ export default function SurrogateDashboard({ route, navigation }) {
         )}
 
         <Text style={styles.sectionHeader}>Support</Text>
-        <TouchableOpacity style={styles.rowCard} onPress={() => Alert.alert('Support', 'Contacting agency...')}>
+        <TouchableOpacity 
+          style={styles.rowCard} 
+          onPress={() => Linking.openURL('tel:09016246947')}
+        >
           <View style={[styles.miniIcon, { backgroundColor: '#F3F4F6' }]}>
             <Ionicons name="call-outline" size={20} color="#4B5563" />
           </View>

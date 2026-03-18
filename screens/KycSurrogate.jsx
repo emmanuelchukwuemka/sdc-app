@@ -56,8 +56,6 @@ export default function KycSurrogate({
   const [idImage, setIdImage] = useState(null); // Local image pick
   const insets = useSafeAreaInsets();
 
-  // Debounce timer ref for auto-save
-  const autosaveTimer = useRef(null);
 
   // Form state (single object, organized by sections)
   const [form, setForm] = useState({
@@ -175,17 +173,7 @@ export default function KycSurrogate({
   const completedCount = stepCompleted.filter(Boolean).length;
   const progressPercent = Math.round((completedCount / stepsCount) * 100);
 
-  // Debounced auto-save scheduler (no external deps)
-  const scheduleAutoSave = useCallback(() => {
-    if (autosaveTimer.current) clearTimeout(autosaveTimer.current);
-    autosaveTimer.current = setTimeout(() => {
-      // Auto-save as "in_progress"
-      saveStep(false);
-    }, 1000); // 1s after user stops typing/toggling
-  }, [saveStep]);
-
   const mergeForm = (path, value) => {
-    // path example: ['personal','surname']
     setForm((prev) => {
       const next = { ...prev };
       let ref = next;
@@ -196,9 +184,6 @@ export default function KycSurrogate({
       ref[path[path.length - 1]] = value;
       return next;
     });
-
-    // schedule auto-save on every change
-    scheduleAutoSave();
   };
 
   const saveStep = useCallback(async (finalize = false) => {
@@ -215,14 +200,14 @@ export default function KycSurrogate({
       let fileUrl = form.identification.id_card_url || null;
       if (idImage && idImage.uri) {
         try {
-          const fileToUpload = {
+          const fileProps = {
             uri: idImage.uri,
             type: idImage.type || 'image/jpeg',
             name: idImage.fileName || `kyc_surrogate_${userId}_${Date.now()}.jpg`,
           };
 
-          const uploadResp = await uploadAPI.uploadFile(fileToUpload, `kyc/${userId}`);
-          fileUrl = uploadResp.url;
+            const uploadResp = await uploadAPI.uploadFile(fileProps, null, `kyc/${userId}`);
+            fileUrl = uploadResp.url;
         } catch (uplErr) {
           console.log('Upload error (Surrogate):', uplErr);
           // Proceed saving form but alert?
@@ -248,9 +233,10 @@ export default function KycSurrogate({
         file_url: fileUrl
       });
 
-      // Update local state
-      setForm(updatedForm); // Ensure local state has URL
+      // 3. Update snapshots, but DO NOT overwrite the active 'form' state 
+      // to avoid race conditions with user typing.
       setSavedSnapshot(updatedForm);
+      setLastSavedAt(new Date());
       if (finalize) onDone();
     } catch (e) {
       console.log('KYC save error (outer catch):', e);
@@ -275,55 +261,45 @@ export default function KycSurrogate({
     }
   };
 
-  const loadExisting = useCallback(async () => {
+  const loadExisting = useCallback(async (isInitial = false) => {
     try {
-      setLoading(true);
+      if (isInitial) setLoading(true);
       // Fetch existing KYC data
       const documents = await kycAPI.getKycDocuments();
       const data = documents.find(doc => doc.user_id === userId) || null;
+      
       if (data?.form_data) {
-        // ✅ Deep merge instead of shallow merge
-        setForm((prev) => ({
-          ...prev,
-          personal: { ...prev.personal, ...(data.form_data.personal || {}) },
-          medical: { ...prev.medical, ...(data.form_data.medical || {}) },
-          identification: { ...prev.identification, ...(data.form_data.identification || {}) },
-          referral: { ...prev.referral, ...(data.form_data.referral || {}) },
-          emergency: { ...prev.emergency, ...(data.form_data.emergency || {}) },
-        }));
+        setForm(prev => {
+          // If this is initial load, we definitely want the saved data.
+          // If not initial (autosave feedback), we only want to merge if current is empty
+          // or if we trust the server version more. 
+          // However, the "disappearing" issue happens because the server returns an OLDER version
+          // during the roundtrip of an autosave.
+          if (isInitial) return { ...prev, ...data.form_data };
+          return prev; 
+        });
         setSavedSnapshot(data.form_data || null);
       }
       // If previously submitted/approved, we can immediately finish
-      if (data?.status === 'submitted' || data?.status === 'approved') {
+      if (isInitial && (data?.status === 'submitted' || data?.status === 'approved')) {
         onDone();
       }
     } catch (e) {
-      // ignore
+      console.log('Load error:', e);
     } finally {
-      setLoading(false);
+      if (isInitial) setLoading(false);
     }
   }, [userId, onDone]);
 
   useEffect(() => {
-    loadExisting();
-  }, [loadExisting]);
-
-  // Cleanup debounce timer on unmount
-  useEffect(() => {
-    return () => {
-      if (autosaveTimer.current) clearTimeout(autosaveTimer.current);
-    };
+    loadExisting(true);
   }, []);
-
   const goNext = async () => {
-    // force an immediate save on navigation
-    if (autosaveTimer.current) clearTimeout(autosaveTimer.current);
     await saveStep(false);
     setStep((s) => Math.min(stepsCount - 1, s + 1));
   };
 
   const goBack = async () => {
-    if (autosaveTimer.current) clearTimeout(autosaveTimer.current);
     await saveStep(false);
     setStep((s) => Math.max(0, s - 1));
   };

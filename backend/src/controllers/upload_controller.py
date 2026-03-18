@@ -35,13 +35,20 @@ def upload_file():
         if not allowed_file(file.filename):
             return jsonify({'error': 'File type not allowed'}), 400
         
-        # Get conversation_id from form data or query params
+        # Get path or conversation_id from form data or query params
+        path = request.form.get('path') or request.args.get('path')
         conversation_id = request.form.get('conversation_id') or request.args.get('conversation_id')
-        if not conversation_id:
-            return jsonify({'error': 'conversation_id is required'}), 400
+        
+        # Use path if provided, otherwise fallback to conversation_id
+        if path:
+            target_subfolder = path
+        elif conversation_id:
+            target_subfolder = os.path.join('conversations', conversation_id)
+        else:
+            target_subfolder = 'general'
         
         # Create upload directory if it doesn't exist
-        upload_path = os.path.join(current_app.root_path, '..', UPLOAD_FOLDER, conversation_id)
+        upload_path = os.path.normpath(os.path.join(current_app.root_path, '..', UPLOAD_FOLDER, target_subfolder))
         os.makedirs(upload_path, exist_ok=True)
         
         # Generate secure filename
@@ -55,7 +62,9 @@ def upload_file():
         file.save(file_path)
         
         # Generate URL (in production, use CDN or cloud storage)
-        file_url = f"/uploads/{conversation_id}/{unique_filename}"
+        # Convert path separators to forward slashes for the URL
+        url_subfolder = target_subfolder.replace(os.sep, '/')
+        file_url = f"/uploads/{url_subfolder}/{unique_filename}"
         
         # Return file info
         return jsonify({
@@ -68,12 +77,12 @@ def upload_file():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-@upload_bp.route('/uploads/<conversation_id>/<filename>')
-def serve_file(conversation_id, filename):
-    """Serve uploaded files"""
+@upload_bp.route('/uploads/<path:filename>')
+def serve_file(filename):
+    """Serve uploaded files using a recursive path"""
     try:
         from flask import send_from_directory
-        directory = os.path.join(current_app.root_path, '..', UPLOAD_FOLDER, conversation_id)
+        directory = os.path.normpath(os.path.join(current_app.root_path, '..', UPLOAD_FOLDER))
         return send_from_directory(directory, filename)
     except FileNotFoundError:
         return jsonify({'error': 'File not found'}), 404

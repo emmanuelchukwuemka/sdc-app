@@ -117,8 +117,12 @@ export default function AgencyDashboard({ agencyId, onBack = () => { } }) {
           <TouchableOpacity onPress={onBack} style={styles.backCircle}>
             <Ionicons name="arrow-back" size={20} color={BRAND_GREEN} />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Agency Portal</Text>
-          <View style={{ width: 40 }} />
+          <TouchableOpacity 
+            onPress={() => navigation.navigate('AgencyProfile', { userId: agencyId })} 
+            style={styles.profileBtn}
+          >
+            <Ionicons name="person-circle" size={32} color="#fff" />
+          </TouchableOpacity>
         </View>
 
         <View style={styles.statsRow}>
@@ -295,4 +299,7 @@ const styles = StyleSheet.create({
   modalCancelText: { color: GRAY, fontWeight: '800' },
   modalSubmit: { flex: 2, backgroundColor: BRAND_GREEN, paddingVertical: 14, borderRadius: 15, alignItems: 'center' },
   modalSubmitText: { color: '#fff', fontWeight: '900' },
+  profileBtn: {
+    padding: 4,
+  },
 });

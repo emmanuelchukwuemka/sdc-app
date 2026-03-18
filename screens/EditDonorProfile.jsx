@@ -1,4 +1,4 @@
-// screens/EditSurrogateProfile.jsx
+// screens/EditDonorProfile.jsx
 import React, { useState } from 'react';
 import {
   View,
@@ -16,7 +16,7 @@ import { kycAPI } from '../services/api';
 const BRAND_GREEN = '#16A34A';
 const BORDER = '#E5E7EB';
 
-export default function EditSurrogateProfile({ navigation, route }) {
+export default function EditDonorProfile({ navigation, route }) {
   const { userId, formData } = route.params || {};
   const [personal, setPersonal] = useState(formData?.personal || {});
 
@@ -38,15 +38,13 @@ export default function EditSurrogateProfile({ navigation, route }) {
         last_name: personal.surname || personal.last_name || (existing.form_data || {}).last_name,
       };
 
-      // If the document was already submitted or approved, keep it that way.
-      // Otherwise, if we are editing, we are likely still in 'submitted' or 'approved' state if they could see the edit button.
       const newStatus = existing.status === 'approved' ? 'approved' : 'submitted';
 
       await kycAPI.submitKycDocument({
         user_id: userId,
-        role: existing.role || 'SURROGATE',
+        role: existing.role || 'DONOR',
         form_data: updatedForm,
-        form_progress: 100, // Editing a "saved" profile should maintain 100% progress
+        form_progress: 100,
         status: newStatus
       });
 

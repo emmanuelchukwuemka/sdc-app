@@ -42,6 +42,24 @@ def create_admin_user():
         print("Admin user created successfully!")
         print(f"Email: admin@sdc.com")
         print(f"Password: {password}")
+        
+        # Create test user for the user to test Forget Password
+        test_email = 'nwekee125@gmail.com'
+        if not User.query.filter_by(email=test_email).first():
+            test_user = User(
+                email=test_email,
+                username='testuser',
+                password_hash=hashed_pw,
+                role='donor',
+                first_name='Test',
+                last_name='User',
+                is_verified=True,
+                is_active=True
+            )
+            db.session.add(test_user)
+            db.session.commit()
+            print(f"Test user created: {test_email}")
+        
         print(f"Role: {admin_user.role}")
 
 if __name__ == "__main__":

@@ -49,22 +49,25 @@ export default function Profile({ route, navigation, onLogout }) {
     return () => { on = false; };
   }, [userId]);
 
-  // Load profile (kyc_documents)
-  useEffect(() => {
-    let on = true;
-    (async () => {
-      try {
-        setLoading(true);
-        const data = await kycAPI.getStatus();
-        if (on) setProfileData(data?.form_data || {});
-      } catch (e) {
-        console.log('Profile load error', e?.message || e);
-      } finally {
-        on && setLoading(false);
+  const fetchProfile = async () => {
+    try {
+      setLoading(true);
+      const data = await kycAPI.getStatus();
+      if (data) {
+        setProfileData(data.form_data || {});
       }
-    })();
-    return () => { on = false; };
-  }, [userId]);
+    } catch (e) {
+      console.log('Profile load error', e?.message || e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchProfile();
+    const unsubscribe = navigation.addListener('focus', fetchProfile);
+    return unsubscribe;
+  }, [navigation, userId]);
 
   const handleLogout = async () => {
     Alert.alert(
@@ -204,8 +207,15 @@ export default function Profile({ route, navigation, onLogout }) {
 
         {/* Personal Details Section */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>PERSONAL DETAILS</Text>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, paddingHorizontal: 4 }}>
+            <Text style={[styles.sectionTitle, { marginBottom: 0, marginLeft: 0 }]}>PERSONAL DETAILS</Text>
+            <TouchableOpacity onPress={() => navigation.navigate('EditIpProfile', { userId, formData: profileData })}>
+              <Text style={{ color: BRAND_GREEN, fontWeight: '700', fontSize: 13 }}>Edit</Text>
+            </TouchableOpacity>
+          </View>
           <View style={styles.card}>
+            <InfoRow icon="person-outline" label="Title" value={profileData?.personal?.title} />
+            <View style={styles.divider} />
             <InfoRow icon="mail-outline" label="Email" value={email} />
             <View style={styles.divider} />
             <InfoRow icon="call-outline" label="Phone" value={profileData?.personal?.phone1 || profileData?.phone || ''} />
@@ -213,8 +223,71 @@ export default function Profile({ route, navigation, onLogout }) {
             <InfoRow icon="calendar-outline" label="Date of Birth" value={profileData?.personal?.dob || profileData?.dob || ''} />
             <View style={styles.divider} />
             <InfoRow icon="location-outline" label="Address" value={profileData?.personal?.home_address || 'Not set'} />
+            <View style={styles.divider} />
+            <InfoRow icon="briefcase-outline" label="Occupation" value={profileData?.personal?.occupation} />
           </View>
         </View>
+
+        {/* IP Specific Sections */}
+        {role === 'IP' && (
+          <>
+            {/* Marital & Family */}
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>MARITAL & FAMILY INFO</Text>
+              <View style={styles.card}>
+                <InfoRow icon="heart-outline" label="Marital Status" value={profileData?.marital?.status} />
+                <View style={styles.divider} />
+                <InfoRow icon="people-outline" label="Spouse Name" value={profileData?.marital?.spouse_name} />
+                <View style={styles.divider} />
+                <InfoRow icon="person-outline" label="Spouse Age" value={profileData?.marital?.spouse_age} />
+                <View style={styles.divider} />
+                <InfoRow icon="briefcase-outline" label="Spouse Occupation" value={profileData?.marital?.spouse_occupation} />
+                <View style={styles.divider} />
+                <InfoRow icon="man-outline" label="Children Count" value={profileData?.marital?.children_count} />
+              </View>
+            </View>
+
+            {/* Medical & Fertility */}
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>MEDICAL & FERTILITY DETAILS</Text>
+              <View style={styles.card}>
+                <InfoRow icon="medical-outline" label="History" value={profileData?.medical?.history} />
+                <View style={styles.divider} />
+                <InfoRow icon="alert-outline" label="Fertility Challenges" value={profileData?.medical?.fertility_challenges} />
+                <View style={styles.divider} />
+                <InfoRow icon="medkit-outline" label="Blood Group" value={profileData?.medical?.blood_group} />
+                <View style={styles.divider} />
+                <InfoRow icon="bandage-outline" label="Genotype" value={profileData?.medical?.genotype} />
+              </View>
+            </View>
+
+            {/* Financial & Support */}
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>FINANCIAL & SUPPORT</Text>
+              <View style={styles.card}>
+                <InfoRow icon="cash-outline" label="Financially Prepared" value={profileData?.financial?.prepared} />
+                <View style={styles.divider} />
+                <InfoRow icon="shield-outline" label="Health Insurance" value={profileData?.financial?.insurance} />
+                <View style={styles.divider} />
+                <InfoRow icon="card-outline" label="Payment Mode" value={profileData?.financial?.payment_mode} />
+              </View>
+            </View>
+
+            {/* Emergency Contacts */}
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>EMERGENCY CONTACTS</Text>
+              <View style={styles.card}>
+                <InfoRow icon="call-outline" label="Contact 1 Name" value={profileData?.emergency?.name1} />
+                <View style={styles.divider} />
+                <InfoRow icon="phone-portrait-outline" label="Contact 1 Mobile" value={profileData?.emergency?.mobile1} />
+                <View style={styles.divider} />
+                <InfoRow icon="call-outline" label="Contact 2 Name" value={profileData?.emergency?.name2} />
+                <View style={styles.divider} />
+                <InfoRow icon="phone-portrait-outline" label="Contact 2 Mobile" value={profileData?.emergency?.mobile2} />
+              </View>
+            </View>
+          </>
+        )}
 
         {/* Settings Section */}
         <View style={styles.section}>
@@ -224,7 +297,7 @@ export default function Profile({ route, navigation, onLogout }) {
             <View style={styles.divider} />
             <MenuRow icon="lock-closed-outline" label="Privacy & Security" onPress={() => { }} />
             <View style={styles.divider} />
-            <MenuRow icon="help-circle-outline" label="Help & Support" onPress={() => { }} />
+            <MenuRow icon="help-circle-outline" label="Help & Support" onPress={() => navigation.navigate('Support')} />
           </View>
         </View>
 

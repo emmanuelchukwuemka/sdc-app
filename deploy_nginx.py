@@ -16,8 +16,8 @@ def deploy_nginx():
     username = "root"
     password = "Mathscrusader123."
     
-    # Nginx configuration
-    nginx_config = """server {
+    # Nginx configuration templates
+    nginx_config_basic = """server {
     listen 80;
     listen [::]:80;
     server_name surrogateanddonorconnect.com www.surrogateanddonorconnect.com;
@@ -32,16 +32,31 @@ def deploy_nginx():
         proxy_set_header X-Forwarded-Proto $scheme;
     }
 }"""
-    
-    # Commands to execute
-    commands = [
-        "apt update",
-        "apt install -y nginx",
-        f"echo '{nginx_config}' > /etc/nginx/sites-available/surrogateanddonorconnect.conf",
-        "ln -sf /etc/nginx/sites-available/surrogateanddonorconnect.conf /etc/nginx/sites-enabled/",
-        "nginx -t",
-        "systemctl reload nginx"
-    ]
+
+    nginx_config_ssl = """server {
+    listen 80;
+    listen [::]:80;
+    server_name surrogateanddonorconnect.com www.surrogateanddonorconnect.com;
+    return 301 https://$host$request_uri;
+}
+
+server {
+    listen 443 ssl;
+    server_name surrogateanddonorconnect.com www.surrogateanddonorconnect.com;
+
+    ssl_certificate /etc/letsencrypt/live/surrogateanddonorconnect.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/surrogateanddonorconnect.com/privkey.pem;
+
+    location / {
+        proxy_pass http://127.0.0.1:5000;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}"""
     
     try:
         print("🔄 Connecting to server...")
@@ -52,6 +67,28 @@ def deploy_nginx():
         # Connect to server
         ssh.connect(hostname, username=username, password=password, timeout=10)
         print("✅ Connected successfully!")
+
+        # Check for SSL certificate
+        print("🔍 Checking for existing SSL certificates...")
+        stdin, stdout, stderr = ssh.exec_command("ls /etc/letsencrypt/live/surrogateanddonorconnect.com/fullchain.pem")
+        has_ssl = stdout.channel.recv_exit_status() == 0
+        
+        if has_ssl:
+            print("   ✅ SSL certificates found. Using HTTPS configuration.")
+            final_config = nginx_config_ssl
+        else:
+            print("   ⚠️  No SSL certificates found. Using basic HTTP configuration.")
+            final_config = nginx_config_basic
+
+        # Commands to execute
+        commands = [
+            "apt update",
+            "apt install -y nginx",
+            f"echo '{final_config}' > /etc/nginx/sites-available/surrogateanddonorconnect.conf",
+            "ln -sf /etc/nginx/sites-available/surrogateanddonorconnect.conf /etc/nginx/sites-enabled/",
+            "nginx -t",
+            "systemctl reload nginx"
+        ]
         
         # Execute commands
         for i, command in enumerate(commands, 1):

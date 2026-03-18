@@ -84,6 +84,7 @@ export default function Register({ role, onSuccess, onBack }) {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [phoneNumber, setPhoneNumber] = useState('');
   const [emailError, setEmailError] = useState('');
 
   // Alert state
@@ -131,15 +132,26 @@ export default function Register({ role, onSuccess, onBack }) {
         last_name: cleanLastName,
         username: cleanUsername,
         middle_name: cleanMiddleName,
-        form_data: {
+        phone_number: phoneNumber.trim(),
+      };
+
+      // Prepare role-specific KYC form data
+      let kycFormData = { role: role };
+      if (role === 'SURROGATE' || role === 'DONOR') {
+        kycFormData.personal = {
           first_name: cleanFirstName,
           middle_name: cleanMiddleName,
-          last_name: cleanLastName,
-          username: cleanUsername,
+          surname: cleanLastName, // Standardizing surname
           email: cleanEmail,
-          role: role
-        }
-      };
+          phone1: phoneNumber.trim(),
+        };
+      } else if (role === 'AGENCY') {
+        kycFormData.details = {
+          primary_contact_name: `${cleanFirstName} ${cleanLastName}`.trim(),
+          official_email: cleanEmail,
+          phone1: phoneNumber.trim(),
+        };
+      }
 
       // Register user via Flask API
       const registerResponse = await authAPI.register(registrationData);
@@ -151,7 +163,9 @@ export default function Register({ role, onSuccess, onBack }) {
         // Create initial KYC document
         try {
           await kycAPI.submitDocument({
-            form_data: registrationData.form_data,
+            user_id: registerResponse.user_id,
+            role: role,
+            form_data: kycFormData,
             form_progress: 0,
             status: 'in_progress'
           });
@@ -210,6 +224,15 @@ export default function Register({ role, onSuccess, onBack }) {
             </View>
 
             <InputField label="Middle Name" icon="person-outline" value={middleName} onChange={setMiddleName} placeholder="Optional" />
+
+            <InputField
+              label="Phone Number *"
+              icon="call-outline"
+              value={phoneNumber}
+              onChange={setPhoneNumber}
+              placeholder="e.g. 09016246947"
+              keyboardType="phone-pad"
+            />
 
             <View style={styles.divider} />
             <Text style={styles.sectionTitle}>Account Information</Text>

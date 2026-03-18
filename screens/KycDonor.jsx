@@ -190,13 +190,13 @@ export default function KycDonor({ userId, onSkip, onDone }) {
         let fileUrl = form.identification.id_card_url || null;
         if (idImage && idImage.uri) {
           try {
-            const fileToUpload = {
+            const fileProps = {
               uri: idImage.uri,
               type: idImage.type || 'image/jpeg',
               name: idImage.fileName || `kyc_${userId}_${Date.now()}.jpg`,
             };
 
-            const uploadResp = await uploadAPI.uploadFile(fileToUpload, `kyc/${userId}`);
+            const uploadResp = await uploadAPI.uploadFile(fileProps, null, `kyc/${userId}`);
             fileUrl = uploadResp.url;
           } catch (uplErr) {
             console.log('Upload error (Donor):', uplErr);
@@ -224,7 +224,6 @@ export default function KycDonor({ userId, onSkip, onDone }) {
         if (final) {
           onDone();
         } else {
-          setForm(payload);
           setStep((s) => Math.min(stepsCount - 1, s + 1));
         }
       } catch (e) {
@@ -249,29 +248,33 @@ export default function KycDonor({ userId, onSkip, onDone }) {
       setSaving(false);
     }
   };
-  const loadExisting = useCallback(async () => {
+  const loadExisting = useCallback(async (isInitial = false) => {
     try {
-      setLoading(true);
+      if (isInitial) setLoading(true);
       // Fetch existing KYC data
       const documents = await kycAPI.getKycDocuments();
       const data = documents.find(doc => doc.user_id === userId) || null;
+      
       if (data?.form_data) {
-        setForm((prev) => ({ ...prev, ...(data.form_data || {}) }));
+        setForm(prev => {
+          if (isInitial) return { ...prev, ...data.form_data };
+          return prev;
+        });
         setSavedSnapshot(data.form_data || null);
       }
-      if ((data?.form_progress ?? 0) >= 100 || data?.status === "approved") {
+      if (isInitial && (data?.status === 'approved' || data?.status === 'submitted')) {
         onDone();
       }
     } catch (e) {
-      console.log("Load error:", e.message || e);
+      console.log('Load error:', e.message || e);
     } finally {
-      setLoading(false);
+      if (isInitial) setLoading(false);
     }
   }, [userId, onDone]);
 
   useEffect(() => {
-    loadExisting();
-  }, [loadExisting]);
+    loadExisting(true);
+  }, []);
 
   const renderStep = () => {
     switch (step) {

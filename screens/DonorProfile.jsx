@@ -1,4 +1,4 @@
-// screens/SurrogateProfile.jsx
+// screens/DonorProfile.jsx
 import React, { useEffect, useState } from 'react';
 import {
   View,
@@ -17,14 +17,13 @@ import { marketplaceAPI, uploadAPI, userAPI } from '../services/api';
 import * as ImagePicker from 'expo-image-picker';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as ImageManipulator from 'expo-image-manipulator';
-import * as FileSystem from 'expo-file-system';
 
 const BRAND_GREEN = '#16A34A';
 const LIGHT_BG = '#F9FAFB';
 const BORDER = '#E5E7EB';
 const TEXT_MUTED = '#6B7280';
 
-export default function SurrogateProfile({ navigation, route }) {
+export default function DonorProfile({ navigation, route }) {
   const userId = route?.params?.userId;
   const [loading, setLoading] = useState(true);
   const [kyc, setKyc] = useState(null);
@@ -98,8 +97,8 @@ export default function SurrogateProfile({ navigation, route }) {
         marginBottom: 10,
       }}
     >
-      <Text style={{ color: TEXT_MUTED, fontWeight: '600' }}>{label}</Text>
-      <Text style={{ color: '#111827', fontWeight: '700' }}>
+      <Text style={{ color: TEXT_MUTED, fontWeight: '600', flex: 1 }}>{label}</Text>
+      <Text style={{ color: '#111827', fontWeight: '700', flex: 1, textAlign: 'right' }}>
         {value || '-'}
       </Text>
     </View>
@@ -119,6 +118,7 @@ export default function SurrogateProfile({ navigation, route }) {
   const form = kyc?.form_data || {};
   const personal = form.personal || {};
   const medical = form.medical || {};
+  const reproductive = form.reproductive || {};
   const identification = form.identification || {};
   const referral = form.referral || {};
   const emergency = form.emergency || {};
@@ -133,10 +133,7 @@ export default function SurrogateProfile({ navigation, route }) {
       }
 
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes:
-          ImagePicker.MediaType?.Images ??
-          ImagePicker.MediaTypeOptions?.Images ??
-          'images',
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
         aspect: [1, 1],
         quality: 0.8,
@@ -144,75 +141,32 @@ export default function SurrogateProfile({ navigation, route }) {
       if (result.canceled) return;
 
       const asset = result.assets[0];
-
-      // Ensure authenticated before upload
-      // Skip auth check for demo mode
-      const user = { id: userId }; // Use passed userId for demo mode
-
       setAvatarUploading(true);
 
-      // --- 1. keep original extension ---
       const uriParts = asset.uri.split('.');
       const ext = uriParts[uriParts.length - 1].toLowerCase() || 'jpg';
       const validExts = ['jpg', 'jpeg', 'png', 'webp', 'heic', 'heif'];
       const finalExt = validExts.includes(ext) ? ext : 'jpg';
-      const contentType = `image/${finalExt === 'jpg' ? 'jpeg' : finalExt}`;
 
-      const path = `avatars/${user.id}/${Date.now()}.${finalExt}`;
-
-      // --- 2. resize & convert ---
-      let base64String;
-      try {
-        if (Platform.OS === 'web') {
-          const res = await fetch(asset.uri);
-          const blob = await res.blob();
-          base64String = await new Promise((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onload = () => resolve(reader.result.split(',')[1]);
-            reader.onerror = reject;
-            reader.readAsDataURL(blob);
-          });
-        } else {
-          const manipulated = await ImageManipulator.manipulateAsync(
-            asset.uri,
-            [{ resize: { width: 512 } }],
-            {
-              compress: 0.8,
-              format:
-                finalExt === 'png'
-                  ? ImageManipulator.SaveFormat.PNG
-                  : ImageManipulator.SaveFormat.JPEG,
-              base64: true,
-            }
-          );
-          base64String = manipulated.base64;
+      const manipulated = await ImageManipulator.manipulateAsync(
+        asset.uri,
+        [{ resize: { width: 512 } }],
+        {
+          compress: 0.8,
+          format: finalExt === 'png' ? ImageManipulator.SaveFormat.PNG : ImageManipulator.SaveFormat.JPEG,
+          base64: true,
         }
-      } catch (e) {
-        console.log('Resize error:', e);
-        throw new Error('Could not prepare image');
-      }
+      );
 
-      // --- 3. base64 -> ArrayBuffer ---
-      function decode(base64) {
-        const bin = atob(base64);
-        const arr = new Uint8Array(bin.length);
-        for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
-        return arr.buffer;
-      }
-
-      // --- 4. upload to Flask API ---
       const uploadResp = await uploadAPI.uploadFile({
         uri: asset.uri,
-        type: contentType,
+        type: `image/${finalExt === 'jpg' ? 'jpeg' : finalExt}`,
         name: `avatar_${userId}.${finalExt}`
       }, 'avatars');
 
       const publicUrl = uploadResp.url;
-
-      // --- 5. save public URL into users table ---
       await userAPI.updateProfile(userId, { profile_image: publicUrl });
 
-      // --- 6. update local state & done ---
       setUser(prev => ({ ...(prev || {}), profile_image: publicUrl }));
       Alert.alert('Profile updated', 'Your profile picture has been updated.');
     } catch (e) {
@@ -224,83 +178,38 @@ export default function SurrogateProfile({ navigation, route }) {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: BRAND_GREEN }} edges={['top', 'bottom']}>
-      {/* ✅ Green Header */}
       <LinearGradient
         colors={['#16A34A', '#22C55E']}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
-        style={{
-          flexDirection: 'row',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          paddingHorizontal: 16,
-          paddingVertical: 18,
-          shadowColor: '#000',
-          shadowOpacity: 0.18,
-          shadowRadius: 16,
-          elevation: 6,
-        }}
+        style={styles.header}
       >
         <TouchableOpacity onPress={() => navigation.goBack()} style={{ padding: 6 }}>
           <Ionicons name="arrow-back" size={20} color="#fff" />
         </TouchableOpacity>
         <Text style={{ fontSize: 20, fontWeight: '900', color: '#fff' }}>
-          Profile
+          My Profile
         </Text>
         <View style={{ width: 28 }} />
       </LinearGradient>
 
       {/* Avatar Card */}
-      <View
-        style={{
-          backgroundColor: '#fff',
-          marginHorizontal: 16,
-          marginTop: -14,
-          borderRadius: 18,
-          borderWidth: 1,
-          borderColor: BORDER,
-          padding: 16,
-          flexDirection: 'row',
-          alignItems: 'center',
-          shadowColor: '#000',
-          shadowOpacity: 0.08,
-          shadowRadius: 10,
-          elevation: 4,
-        }}
-      >
+      <View style={styles.avatarCard}>
         <View style={{ position: 'relative', marginRight: 14 }}>
           {user?.profile_image ? (
             <Image
               source={{ uri: `http://72.62.4.119:5000${user.profile_image}` }}
-              style={{ width: 72, height: 72, borderRadius: 9999, backgroundColor: LIGHT_BG, borderWidth: 1, borderColor: BORDER }}
+              style={styles.avatarImage}
             />
           ) : (
-            <View
-              style={{
-                width: 72, height: 72, borderRadius: 9999,
-                backgroundColor: LIGHT_BG, borderWidth: 1, borderColor: BORDER,
-                alignItems: 'center', justifyContent: 'center',
-              }}
-            >
+            <View style={styles.avatarPlaceholder}>
               <Ionicons name="person" size={38} color={TEXT_MUTED} />
             </View>
           )}
 
           <TouchableOpacity
             onPress={onPickAvatar}
-            style={{
-              position: 'absolute',
-              right: -6,
-              bottom: -6,
-              backgroundColor: '#16A34A',
-              width: 32,
-              height: 32,
-              borderRadius: 16,
-              alignItems: 'center',
-              justifyContent: 'center',
-              borderWidth: 2,
-              borderColor: '#fff',
-            }}
+            style={styles.cameraBtn}
             disabled={avatarUploading}
           >
             {avatarUploading ? (
@@ -316,21 +225,12 @@ export default function SurrogateProfile({ navigation, route }) {
             {`${personal.first_name || user?.first_name || ''} ${personal.surname || user?.last_name || ''}`}
           </Text>
           <Text style={{ color: TEXT_MUTED, fontWeight: '600' }}>
-            Surrogate • ID {userId || '—'}
+            Donor • ID {userId || '—'}
           </Text>
         </View>
       </View>
 
-      {/* ✅ White content wrapper */}
-      <View
-        style={{
-          flex: 1,
-          backgroundColor: LIGHT_BG,
-          borderTopLeftRadius: 20,
-          borderTopRightRadius: 20,
-          overflow: 'hidden',
-        }}
-      >
+      <View style={styles.contentWrapper}>
         <ScrollView contentContainerStyle={{ padding: 14, paddingBottom: 100 }}>
           {/* Personal Info */}
           <Section
@@ -338,7 +238,7 @@ export default function SurrogateProfile({ navigation, route }) {
             rightAction={
               <TouchableOpacity
                 onPress={() =>
-                  navigation.navigate('EditSurrogateProfile', {
+                  navigation.navigate('EditDonorProfile', {
                     userId,
                     formData: form,
                   })
@@ -365,8 +265,8 @@ export default function SurrogateProfile({ navigation, route }) {
           <Section
             title="Verification & KYC"
             rightAction={
-              <View style={{ backgroundColor: '#DCFCE7', paddingHorizontal: 8, paddingVertical: 6, borderRadius: 9999 }}>
-                <Text style={{ color: '#166534', fontWeight: '800' }}>{kycStatus}</Text>
+              <View style={styles.badge}>
+                <Text style={styles.badgeText}>{kycStatus}</Text>
               </View>
             }
           >
@@ -374,24 +274,30 @@ export default function SurrogateProfile({ navigation, route }) {
             <Row label="Last update" value={kyc?.created_at ? new Date(kyc.created_at).toLocaleDateString() : '-'} />
           </Section>
 
-          {/* Health Summary */}
-          <Section title="Health summary">
+          {/* Medical & Genetic Info */}
+          <Section title="Medical & Genetic Summary">
             <Row label="Blood type" value={medical.blood_group} />
             <Row label="Genotype" value={medical.genotype} />
-            <Row label="Children" value={medical.number_of_children} />
             <Row label="Height" value={medical.height} />
             <Row label="Weight" value={medical.weight} />
+            <Row label="Eye Color" value={medical.eye_color} />
+            <Row label="Hair Color" value={medical.hair_color} />
+            <Row label="Skin Tone" value={medical.skin_tone} />
             <Row label="Occupation" value={medical.occupation} />
-            <Row label="Had CS before" value={medical.had_cs_before === true ? 'Yes' : medical.had_cs_before === false ? 'No' : 'Not Provided'} />
-            <Row label="Been Surrogate before" value={medical.been_surrogate_before === true ? 'Yes' : medical.been_surrogate_before === false ? 'No' : 'Not Provided'} />
+            <Row label="Hereditary Illness" value={medical.hereditary_illness} />
+            <Row label="Medical Conditions" value={medical.medical_conditions} />
+            <Row label="Lifestyle Habits" value={medical.lifestyle_habits} />
+            <Row label="Donated before" value={medical.donated_before} />
+            <Row label="Donation count" value={medical.donation_count} />
           </Section>
 
-          {/* Availability */}
-          <Section title="Availability">
-            <Text style={{ color: TEXT_MUTED, marginBottom: 6 }}>Current status</Text>
-            <Text style={{ fontWeight: '800', color: '#111827' }}>
-              Open to new matches
-            </Text>
+          {/* Reproductive Info */}
+          <Section title="Reproductive Information">
+            <Row label="Menstrual Cycle" value={reproductive.menstrual_cycle} />
+            <Row label="Fertility Treatments" value={reproductive.fertility_treatments} />
+            <Row label="Number of Children" value={reproductive.children_count} />
+            <Row label="Last Semen Analysis" value={reproductive.semen_analysis_date} />
+            <Row label="STI History" value={reproductive.stis_history} />
           </Section>
 
           {/* Identification */}
@@ -427,13 +333,9 @@ export default function SurrogateProfile({ navigation, route }) {
               referral.source_ngo,
               referral.source_others
             ].filter(Boolean).join(', ') || 'Not Provided'} />
-            <Row label="Doctor Referral" value={referral.doctor_refer === true ? 'Yes' : referral.doctor_refer === false ? 'No' : 'Not Provided'} />
-            {referral.doctor_refer === true && (
-              <>
-                <Row label="Doctor Name" value={referral.doctor_name_contact} />
-                <Row label="Doctor Phone" value={referral.doctor_phone} />
-              </>
-            )}
+            <Row label="Doctor Referral" value={referral.doctor_referral} />
+            <Row label="Doctor Name" value={referral.doctor_contact} />
+            <Row label="Doctor Phone" value={referral.doctor_phone} />
           </Section>
 
           {/* Emergency Contacts */}
@@ -451,32 +353,76 @@ export default function SurrogateProfile({ navigation, route }) {
           </Section>
         </ScrollView>
       </View>
-
-      {/* ✅ Green Bottom Nav */}
-      <View
-        style={{
-          flexDirection: 'row',
-          justifyContent: 'center',
-          alignItems: 'center',
-          backgroundColor: BRAND_GREEN,
-          paddingVertical: 12,
-        }}
-      >
-        <TouchableOpacity
-          style={{ alignItems: 'center' }}
-          onPress={() => navigation.navigate('SurrogateHome', { userId })}
-        >
-          <Ionicons name="home-outline" size={20} color="#fff" />
-          <Text style={{ color: '#fff', fontSize: 12, marginTop: 2 }}>
-            Home
-          </Text>
-        </TouchableOpacity>
-      </View>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 18,
+    shadowColor: '#000',
+    shadowOpacity: 0.18,
+    shadowRadius: 16,
+    elevation: 6,
+  },
+  avatarCard: {
+    backgroundColor: '#fff',
+    marginHorizontal: 16,
+    marginTop: -14,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: BORDER,
+    padding: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+    elevation: 4,
+  },
+  avatarImage: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: LIGHT_BG,
+    borderWidth: 1,
+    borderColor: BORDER,
+  },
+  avatarPlaceholder: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: LIGHT_BG,
+    borderWidth: 1,
+    borderColor: BORDER,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cameraBtn: {
+    position: 'absolute',
+    right: -6,
+    bottom: -6,
+    backgroundColor: '#16A34A',
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: '#fff',
+  },
+  contentWrapper: {
+    flex: 1,
+    backgroundColor: LIGHT_BG,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    marginTop: 20,
+    overflow: 'hidden',
+  },
   badge: {
     backgroundColor: '#DCFCE7',
     paddingHorizontal: 10,
@@ -487,5 +433,6 @@ const styles = StyleSheet.create({
     color: '#166534',
     fontSize: 12,
     fontWeight: '700',
+    textTransform: 'capitalize',
   },
 });

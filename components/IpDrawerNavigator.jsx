@@ -12,6 +12,7 @@ import IpContracts from "../screens/IpContracts";
 import Referral from "../screens/Referral";
 import Dispute from "../screens/Dispute";
 import Profile from "../screens/Profile";
+import EditIpProfile from "../screens/EditIpProfile";
 
 const Drawer = createDrawerNavigator();
 const BRAND_GREEN = "#16A34A";
@@ -108,6 +109,15 @@ export default function IpDrawerNavigator({ userId, onLogout }) {
       >
         {(props) => <Profile {...props} userId={userId} role="IP" />}
       </Drawer.Screen>
+
+      <Drawer.Screen
+        name="EditIpProfile"
+        component={EditIpProfile}
+        initialParams={{ userId }}
+        options={{
+          drawerItemStyle: { display: 'none' }
+        }}
+      />
     </Drawer.Navigator>
   );
 }
