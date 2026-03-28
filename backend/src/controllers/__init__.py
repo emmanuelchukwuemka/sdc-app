@@ -21,6 +21,7 @@ from .wallet_controller import get_transactions, get_balance
 from .notification_controller import get_notifications, mark_as_read
 from .messages_controller import get_messages, send_message, initialize_mock_messages
 from .upload_controller import upload_file, serve_file
+from .referral_controller import get_code, get_stats
 
 # Auth Blueprint
 auth_bp = Blueprint('auth', __name__)
@@ -118,3 +119,8 @@ messages_bp.add_url_rule('', view_func=send_message, methods=['POST'])
 upload_bp = Blueprint('upload', __name__)
 upload_bp.add_url_rule('/upload', view_func=upload_file, methods=['POST'])
 upload_bp.add_url_rule('/uploads/<conversation_id>/<filename>', view_func=serve_file, methods=['GET'])
+
+# Referral Blueprint
+referral_bp = Blueprint('referrals', __name__)
+referral_bp.add_url_rule('/code', view_func=get_code, methods=['GET'])
+referral_bp.add_url_rule('/stats', view_func=get_stats, methods=['GET'])

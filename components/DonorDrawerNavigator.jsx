@@ -3,14 +3,16 @@ import React, { useEffect, useState } from 'react';
 import { createDrawerNavigator } from '@react-navigation/drawer';
 import { Ionicons } from '@expo/vector-icons';
 import CustomDrawerContent from './CustomDrawerContent';
-import SurrogateNavigator from './SurrogateNavigator'; // reuse bottom tabs for now
+import DonorNavigator from './DonorNavigator';
 import DonorProfile from '../screens/DonorProfile';
 import EditDonorProfile from '../screens/EditDonorProfile';
 import Wallet from '../screens/Wallet';
 import Notifications from '../screens/Notifications';
 import Dispute from '../screens/Dispute';
+import DonorKycWizard from '../screens/DonorKycWizard';
 
 const Drawer = createDrawerNavigator();
+const BRAND_GREEN_DARK = '#15803D';
 
 export default function DonorDrawerNavigator({ userId, onLogout }) {
   const [user, setUser] = useState(null);
@@ -39,18 +41,20 @@ export default function DonorDrawerNavigator({ userId, onLogout }) {
       )}
       screenOptions={{
         headerShown: false,
-        drawerActiveBackgroundColor: '#16A34A',
+        drawerActiveBackgroundColor: BRAND_GREEN_DARK,
         drawerActiveTintColor: '#fff',
         drawerInactiveTintColor: '#111',
         drawerLabelStyle: { marginLeft: -16, fontSize: 15 },
       }}
     >
       <Drawer.Screen name="Dashboard">
-        {() => <SurrogateNavigator userId={userId} onLogout={onLogout} />}
+        {(props) => <DonorNavigator {...props} userId={userId} onLogout={onLogout} />}
       </Drawer.Screen>
-      <Drawer.Screen name="My Profile">
-        {() => <DonorProfile userId={userId} />}
-      </Drawer.Screen>
+      <Drawer.Screen 
+        name="My Profile" 
+        component={DonorProfile}
+        initialParams={{ userId }}
+      />
       <Drawer.Screen
         name="EditDonorProfile"
         component={EditDonorProfile}
@@ -59,21 +63,21 @@ export default function DonorDrawerNavigator({ userId, onLogout }) {
           drawerItemStyle: { display: 'none' } // Hide from drawer menu but keep in stack
         }}
       />
-      <Drawer.Screen name="Wallet">
-        {() => <Wallet userId={userId} />}
-      </Drawer.Screen>
-      <Drawer.Screen name="Notifications">
-        {() => <Notifications userId={userId} />}
-      </Drawer.Screen>
       <Drawer.Screen
-        name="Support"
+        name="My KYC"
+        component={DonorKycWizard}
+        initialParams={{ userId }}
         options={{
           drawerIcon: ({ color, size }) => (
-            <Ionicons name="headset-outline" size={size || 20} color={color} />
+            <Ionicons name="document-text-outline" size={size} color={color} />
           ),
         }}
-      >
-        {(props) => <Dispute {...props} userId={userId} role="DONOR" />}
+      />
+      <Drawer.Screen name="Wallet">
+        {(props) => <Wallet {...props} userId={userId} />}
+      </Drawer.Screen>
+      <Drawer.Screen name="Notifications">
+        {(props) => <Notifications {...props} userId={userId} />}
       </Drawer.Screen>
     </Drawer.Navigator>
   );

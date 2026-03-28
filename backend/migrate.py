@@ -28,6 +28,18 @@ def migrate():
         if 'last_name' not in columns:
             print("Adding last_name to users table...")
             cursor.execute("ALTER TABLE users ADD COLUMN last_name VARCHAR(255)")
+        
+        if 'profile_image' not in columns:
+            print("Adding profile_image to users table...")
+            cursor.execute("ALTER TABLE users ADD COLUMN profile_image VARCHAR(500)")
+            
+        if 'referral_code' not in columns:
+            print("Adding referral_code to users table...")
+            cursor.execute("ALTER TABLE users ADD COLUMN referral_code VARCHAR(20)")
+            
+        if 'referred_by_id' not in columns:
+            print("Adding referred_by_id to users table...")
+            cursor.execute("ALTER TABLE users ADD COLUMN referred_by_id VARCHAR(36)")
             
         conn.commit()
         conn.close()

@@ -1,5 +1,6 @@
 // screens/EditDonorProfile.jsx
 import React, { useState } from 'react';
+import { useNavigation } from '@react-navigation/native';
 import {
   View,
   Text,
@@ -11,12 +12,14 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { kycAPI } from '../services/api';
+import { kycAPI, userAPI } from '../services/api';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const BRAND_GREEN = '#16A34A';
 const BORDER = '#E5E7EB';
 
-export default function EditDonorProfile({ navigation, route }) {
+export default function EditDonorProfile({ navigation: propNavigation, route }) {
+  const navigation = propNavigation || useNavigation();
   const { userId, formData } = route.params || {};
   const [personal, setPersonal] = useState(formData?.personal || {});
 
@@ -47,6 +50,24 @@ export default function EditDonorProfile({ navigation, route }) {
         form_progress: 100,
         status: newStatus
       });
+
+      // Also update the core User model first_name and last_name
+      await userAPI.updateProfile(userId, {
+        first_name: updatedForm.first_name,
+        last_name: updatedForm.last_name
+      });
+
+      // Update AsyncStorage so Dashboard reflects changes immediately
+      const storedUserData = await AsyncStorage.getItem('userData');
+      if (storedUserData) {
+        const userData = JSON.parse(storedUserData);
+        const newUserData = {
+          ...userData,
+          first_name: updatedForm.first_name,
+          last_name: updatedForm.last_name
+        };
+        await AsyncStorage.setItem('userData', JSON.stringify(newUserData));
+      }
 
       Alert.alert('Success', 'Profile updated successfully');
       navigation.goBack();

@@ -12,8 +12,11 @@ import ParentDrawerNavigator from './ParentDrawerNavigator';
 import AdminDrawerNavigator from './AdminDrawerNavigator';
 
 // Import surrogate screens
-import SurrogateKyc from '../screens/SurrogateKyc';
+import SurrogateKyc from '../screens/KycSurrogate';
 import SurrogateKycDetails from '../screens/SurrogateKycDetails';
+
+// Import donor screens
+import DonorKycWizard from '../screens/DonorKycWizard';
 
 const Stack = createNativeStackNavigator();
 
@@ -53,9 +56,19 @@ export default function AppNavigator({ userId, role, onLogout }) {
       )}
 
       {role === 'DONOR' && (
-        <Stack.Screen name="DonorDrawer">
-          {() => <DonorDrawerNavigator userId={userId} onLogout={onLogout} />}
-        </Stack.Screen>
+        <>
+          <Stack.Screen name="DonorDrawer">
+            {() => <DonorDrawerNavigator userId={userId} onLogout={onLogout} />}
+          </Stack.Screen>
+
+          {/* ✅ New: Donor KYC page */}
+          <Stack.Screen
+            name="DonorKycWizard"
+            options={{ headerShown: false }}
+          >
+            {(props) => <DonorKycWizard {...props} userId={userId} />}
+          </Stack.Screen>
+        </>
       )}
 
       {role === 'AGENCY' && (

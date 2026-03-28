@@ -321,7 +321,11 @@ export default function App() {
       content = <KycAgency userId={currentUserId} onSkip={() => setKycApproved(true)} onDone={async () => setKycApproved(true)} />;
     }
   } else if (user.role === 'AGENCY' && !subscription) {
-    content = <AgencySubscription userId={user.id} onSelect={(plan) => setSubscription(plan)} />;
+    content = <AgencySubscription 
+      userId={user.id} 
+      onSelect={(plan) => setSubscription(plan)} 
+      onBack={() => { setUser(null); setRole(null); }} 
+    />;
   } else if (user.role === 'AGENCY' && subscription) {
     content = (
       <NavigationContainer>

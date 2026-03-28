@@ -238,7 +238,7 @@ export default function Register({ role, onSuccess, onBack }) {
             <Text style={styles.sectionTitle}>Account Information</Text>
 
             <InputField label="Username *" icon="at-outline" value={username} onChange={setUsername} placeholder="Unique username" autoCapitalize="none" />
-
+ 
             <InputField
               label="Email Address *"
               icon="mail-outline"

@@ -18,7 +18,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { marketplaceAPI } from '../services/api';
 
 const BRAND_GREEN = '#16A34A';
-const BRAND_DARK = '#14532D';
+const BRAND_DARK = '#064E3B';
 const ACCENT_WHITE = '#FFFFFF';
 const BG_COLOR = '#F1F5F9'; // Slate 100
 const TEXT_PRIMARY = '#1E293B';
@@ -214,7 +214,7 @@ export default function AdminCommissions({
               title="Badges"
               desc="Verification Levels"
               icon="ribbon"
-              color="#6366F1"
+              color="#16A34A"
               onPress={onOpenBadges}
               description="User Verifications"
             />

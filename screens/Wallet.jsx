@@ -107,7 +107,7 @@ export default function Wallet({ route, navigation }) {
       {/* ✅ TopBar */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={20} color="#fff" />
+          <Ionicons name="arrow-back" size={20} color="#111827" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Wallet</Text>
         <View style={{ width: 24 }} />

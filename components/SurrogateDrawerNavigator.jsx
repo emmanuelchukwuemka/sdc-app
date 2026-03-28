@@ -60,7 +60,7 @@ export default function SurrogateDrawerNavigator({ userId, onLogout }) {
           ),
         }}
       >
-        {() => <SurrogateNavigator userId={userId} onLogout={onLogout} />}
+        {(props) => <SurrogateNavigator {...props} userId={userId} onLogout={onLogout} />}
       </Drawer.Screen>
 
       {/* Profile */}
@@ -148,7 +148,6 @@ export default function SurrogateDrawerNavigator({ userId, onLogout }) {
         }}
       />
 
-      {/* Notifications */}
       <Drawer.Screen
         name="Notifications"
         component={Notifications}
@@ -156,18 +155,6 @@ export default function SurrogateDrawerNavigator({ userId, onLogout }) {
         options={{
           drawerIcon: ({ color, size }) => (
             <Ionicons name="notifications-outline" size={size} color={color} />
-          ),
-        }}
-      />
-
-      {/* Support */}
-      <Drawer.Screen
-        name="Support"
-        component={Dispute}
-        initialParams={{ userId }}
-        options={{
-          drawerIcon: ({ color, size }) => (
-            <Ionicons name="headset-outline" size={size} color={color} />
           ),
         }}
       />

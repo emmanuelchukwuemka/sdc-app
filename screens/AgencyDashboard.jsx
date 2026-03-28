@@ -22,7 +22,7 @@ const GRAY = '#6B7280';
 const LIGHT_BG = '#F8FAF9';
 const DARK = '#111827';
 
-export default function AgencyDashboard({ agencyId, onBack = () => { } }) {
+export default function AgencyDashboard({ agencyId, navigation, onBack = () => { } }) {
   const [loading, setLoading] = useState(true);
   const [roster, setRoster] = useState([]);
   const [subscription, setSubscription] = useState(null);

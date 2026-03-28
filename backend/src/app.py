@@ -7,12 +7,12 @@ if __package__ is None or __package__ == '':
     sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     from src.models import db, mail
     from src.config import Config
-    from src.controllers import auth_bp, user_bp, kyc_bp, marketplace_bp, agency_bp, favorites_bp, badge_bp, admin_bp, wallet_bp, notification_bp, messages_bp, upload_bp
+    from src.controllers import auth_bp, user_bp, kyc_bp, marketplace_bp, agency_bp, favorites_bp, badge_bp, admin_bp, wallet_bp, notification_bp, messages_bp, upload_bp, referral_bp
 else:
     # Running as package
     from .models import db, mail
     from .config import Config
-    from .controllers import auth_bp, user_bp, kyc_bp, marketplace_bp, agency_bp, favorites_bp, badge_bp, admin_bp, wallet_bp, notification_bp, messages_bp, upload_bp
+    from .controllers import auth_bp, user_bp, kyc_bp, marketplace_bp, agency_bp, favorites_bp, badge_bp, admin_bp, wallet_bp, notification_bp, messages_bp, upload_bp, referral_bp
 
 from flask import Flask, jsonify, request
 from flask_cors import CORS
@@ -49,6 +49,7 @@ def create_app(config_class=None):
     app.register_blueprint(notification_bp, url_prefix='/api/notifications')
     app.register_blueprint(messages_bp, url_prefix='/api/messages')
     app.register_blueprint(upload_bp, url_prefix='/api')
+    app.register_blueprint(referral_bp, url_prefix='/api/referrals')
     
     # WebSocket event handlers
     @socketio.on('connect')

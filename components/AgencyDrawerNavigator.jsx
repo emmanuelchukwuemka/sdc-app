@@ -37,7 +37,7 @@ export default function AgencyDrawerNavigator({ userId, onLogout }) {
       )}
       screenOptions={{
         headerShown: false,
-        drawerActiveBackgroundColor: '#16A34A',
+        drawerActiveBackgroundColor: '#14532D',
         drawerActiveTintColor: '#fff',
         drawerInactiveTintColor: '#111',
         drawerLabelStyle: { marginLeft: -16, fontSize: 15 },

@@ -103,7 +103,7 @@ export default function IpDashboard({ route, navigation }) {
 
           <TouchableOpacity
             style={styles.pillAction}
-            onPress={() => navigation.navigate('IpFavorites')}
+            onPress={() => navigation.navigate('Favorites')}
           >
             <Ionicons name="heart-outline" size={18} color={BRAND_GREEN} />
             <Text style={styles.pillActionText}>Favorites</Text>

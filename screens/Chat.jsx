@@ -207,7 +207,18 @@ export default function Chat({
   };
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['bottom']}>
+    <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
+      {/* Dynamic Header */}
+      <View style={styles.header}>
+        <TouchableOpacity 
+          onPress={() => onBack ? onBack() : navigation.goBack()} 
+          style={styles.headerButton}
+        >
+          <Ionicons name="arrow-back" size={24} color="#111827" />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Messages</Text>
+        <View style={{ width: 40 }} />
+      </View>
       {loading ? (
         <View style={styles.centerContainer}>
           <ActivityIndicator size="large" color={BRAND_GREEN} />
@@ -270,6 +281,27 @@ export default function Chat({
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: '#FFFFFF' },
+  header: {
+    height: 56,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F3F4F6',
+    backgroundColor: '#fff',
+  },
+  headerButton: {
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#111827',
+  },
   keyboardContainer: { flex: 1, backgroundColor: '#F2F4F7' }, // Light gray chat background
   centerContainer: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   loadingText: { marginTop: 10, color: '#6B7280', fontWeight: '500' },

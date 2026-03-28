@@ -119,6 +119,7 @@ export default function IpNavigator({ userId, role = "IP", onLogout }) {
         <Tab.Screen name="Connect">
           {({ navigation }) => (
             <Marketplace
+              navigation={navigation}
               userId={userId}
               onOpenChat={() => navigation.navigate("Chat")}
               onOpenWallet={() => navigation.navigate("Wallet")}
@@ -133,11 +134,11 @@ export default function IpNavigator({ userId, role = "IP", onLogout }) {
         />
 
         <Tab.Screen name="Wallet">
-          {({ navigation }) => <Wallet userId={userId} />}
+          {({ navigation }) => <Wallet userId={userId} navigation={navigation} />}
         </Tab.Screen>
 
         <Tab.Screen name="Journey">
-          {({ navigation }) => <IpJourney userId={userId} />}
+          {({ navigation }) => <IpJourney userId={userId} navigation={navigation} />}
         </Tab.Screen>
 
         <Tab.Screen

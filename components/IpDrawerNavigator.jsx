@@ -33,7 +33,7 @@ export default function IpDrawerNavigator({ userId, onLogout }) {
     >
       {/* Main Tabs */}
       <Drawer.Screen
-        name="Main"
+        name="Dashboard"
         options={{
           title: "Home",
           drawerIcon: ({ color }) => (
@@ -41,7 +41,7 @@ export default function IpDrawerNavigator({ userId, onLogout }) {
           ),
         }}
       >
-        {() => <IpNavigator userId={userId} onLogout={onLogout} />}
+        {(props) => <IpNavigator {...props} userId={userId} onLogout={onLogout} />}
       </Drawer.Screen>
 
       <Drawer.Screen
@@ -86,17 +86,6 @@ export default function IpDrawerNavigator({ userId, onLogout }) {
         }}
       >
         {(props) => <Referral {...props} userId={userId} />}
-      </Drawer.Screen>
-
-      <Drawer.Screen
-        name="Support"
-        options={{
-          drawerIcon: ({ color }) => (
-            <Ionicons name="headset-outline" size={20} color={color} />
-          ),
-        }}
-      >
-        {(props) => <Dispute {...props} userId={userId} role="IP" />}
       </Drawer.Screen>
 
       <Drawer.Screen

@@ -160,7 +160,7 @@ export default function KycIntendingParent({ userId, onSkip, onDone }) {
               name: idImage.fileName || `kyc_ip_${userId}_${Date.now()}.jpg`,
             };
 
-            const uploadResp = await uploadAPI.uploadFile(fileProps, null, `kyc/${userId}`);
+            const uploadResp = await uploadAPI.uploadFile(fileToUpload, null, `kyc/${userId}`);
             fileUrl = uploadResp.url;
           } catch (uErr) {
             console.log('Upload fail (IP):', uErr);

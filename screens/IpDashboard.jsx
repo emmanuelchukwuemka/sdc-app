@@ -201,18 +201,6 @@ export default function IpDashboard({ route, navigation }) {
           <Ionicons name="chevron-forward" size={20} color="#D1D5DB" />
         </TouchableOpacity>
 
-        {/* Support Teaser */}
-        <TouchableOpacity style={styles.rowCard} onPress={() => Alert.alert('Support', 'Contact support@sdc.com')}>
-          <View style={[styles.miniIcon, { backgroundColor: '#F3F4F6' }]}>
-            <Ionicons name="headset" size={20} color="#4B5563" />
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.rowTitle}>Help & Support</Text>
-            <Text style={styles.rowSub}>Questions? We’re here.</Text>
-          </View>
-          <Ionicons name="chevron-forward" size={20} color="#D1D5DB" />
-        </TouchableOpacity>
-
       </ScrollView>
     </SafeAreaView>
   );

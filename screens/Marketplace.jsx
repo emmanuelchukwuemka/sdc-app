@@ -42,6 +42,7 @@ const DEFAULT_UNLOCK_COMMISSION_PCT = 10;
 const { width } = Dimensions.get('window');
 
 export default function Marketplace({
+  navigation,
   userId = '00000000-0000-0000-0000-000000000000',
   onOpenChat = () => { },
 }) {
@@ -276,7 +277,17 @@ export default function Marketplace({
 
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Marketplace</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+          {navigation?.canGoBack() && (
+            <TouchableOpacity 
+              onPress={() => navigation.goBack()} 
+              style={{ marginRight: 12, padding: 4 }}
+            >
+              <Ionicons name="arrow-back" size={24} color={DARK_TEXT} />
+            </TouchableOpacity>
+          )}
+          <Text style={styles.headerTitle}>Marketplace</Text>
+        </View>
         <TouchableOpacity style={styles.walletIcon}>
           <Ionicons name="wallet-outline" size={24} color={DARK_TEXT} />
         </TouchableOpacity>

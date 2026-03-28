@@ -106,55 +106,63 @@ export default function SurrogateDashboard({ route, navigation }) {
     <SafeAreaView edges={['bottom']} style={styles.safeContainer}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
 
-        {/* Welcome / Hero Card */}
+        {/* Hero Card - Nurturing/Growth Focus */}
         <View style={styles.heroCard}>
-          <View>
-            <Text style={styles.heroWelcome}>Welcome back,</Text>
-            <Text style={styles.heroRole}>Surrogate</Text>
-          </View>
-
-          <View style={styles.kycRow}>
-            <View style={[styles.statusTag, { backgroundColor: 'rgba(255,255,255,0.2)' }]}>
-              <Ionicons name={kycStatus === 'approved' ? 'checkmark-circle' : 'time'} size={14} color="#fff" />
-              <Text style={styles.statusTagText}>{progressLabel}</Text>
-            </View>
-          </View>
-
-          {formProgress < 100 && (
-            <View style={styles.progressWrap}>
-              <View style={styles.progressLabelRow}>
-                <Text style={styles.progressText}>Profile Completion</Text>
-                <Text style={styles.progressText}>{formProgress}%</Text>
-              </View>
-              <View style={styles.track}>
-                <View style={[styles.fill, { width: `${formProgress}%` }]} />
+          <View style={{ flex: 1 }}>
+            <Text style={styles.heroWelcome}>Empowering Life</Text>
+            <Text style={styles.heroRole}>Welcome, Surrogate</Text>
+            <View style={styles.kycRow}>
+              <View style={[styles.statusTag, { backgroundColor: 'rgba(255,255,255,0.2)' }]}>
+                <Ionicons name={kycStatus === 'approved' ? 'checkmark-circle' : 'time'} size={14} color="#fff" />
+                <Text style={styles.statusTagText}>{progressLabel}</Text>
               </View>
             </View>
-          )}
+          </View>
+          <View style={styles.heroIllustration}>
+            <Ionicons name="leaf" size={50} color="rgba(255,255,255,0.3)" />
+          </View>
         </View>
 
-        {/* Tip Banner */}
-        {showTipBanner && (
-          <View style={styles.tipCard}>
-            <View style={styles.tipHeader}>
-              <Ionicons name="bulb-outline" size={20} color="#F59E0B" />
-              <Text style={styles.tipTitle}>Complete your Profile</Text>
+        {/* Profile Completion - Only show if not 100% */}
+        {formProgress < 100 && (
+          <TouchableOpacity
+            style={styles.progressCard}
+            onPress={() => navigation.navigate("My KYC", { userId })}
+          >
+            <View style={styles.progressHeader}>
+              <Text style={styles.progressTitle}>Complete your KYC</Text>
+              <Text style={styles.progressPercent}>{formProgress}%</Text>
             </View>
-            <Text style={styles.tipBody}>
-              Complete your details to start matching with Intended Parents.
-            </Text>
-            <TouchableOpacity onPress={dismissTipBanner} style={styles.tipLink}>
-              <Text style={styles.tipLinkText}>Dismiss</Text>
-            </TouchableOpacity>
-          </View>
+            <View style={styles.progressBarBg}>
+              <View style={[styles.progressBarFill, { width: `${formProgress}%` }]} />
+            </View>
+            <Text style={styles.progressHint}>Finish your profile to start matching</Text>
+          </TouchableOpacity>
         )}
+
+        {/* Journey Status - NEW SECTION */}
+        <Text style={styles.sectionHeader}>Journey Status</Text>
+        <View style={styles.journeyCard}>
+          <View style={styles.journeyHeader}>
+            <Ionicons name="navigate-circle-outline" size={24} color={BRAND_GREEN} />
+            <Text style={styles.journeyTitle}>Pre-Matching Stage</Text>
+          </View>
+          <Text style={styles.journeyDesc}>You are currently in the initial screening phase. Complete your KYC to be visible to Intended Parents.</Text>
+          <View style={styles.journeyStepRow}>
+            <View style={[styles.journeyStep, styles.stepActive]} />
+            <View style={styles.journeyStepLine} />
+            <View style={styles.journeyStep} />
+            <View style={styles.journeyStepLine} />
+            <View style={styles.journeyStep} />
+          </View>
+        </View>
 
         {/* Quick Actions Grid */}
         <Text style={styles.sectionHeader}>Quick Actions</Text>
         <View style={styles.grid}>
           <TouchableOpacity
             style={styles.gridItem}
-            onPress={() => navigation.navigate("SurrogateKyc", { userId })}
+            onPress={() => navigation.navigate("My KYC", { userId })}
           >
             <View style={[styles.iconBox, { backgroundColor: '#ECFDF5' }]}>
               <Ionicons name="document-text-outline" size={24} color={BRAND_GREEN} />
@@ -167,9 +175,9 @@ export default function SurrogateDashboard({ route, navigation }) {
             onPress={() => navigation.navigate("Appointments")}
           >
             <View style={[styles.iconBox, { backgroundColor: '#F0F9FF' }]}>
-              <Ionicons name="calendar-outline" size={24} color="#0EA5E9" />
+              <Ionicons name="medkit-outline" size={24} color="#0EA5E9" />
             </View>
-            <Text style={styles.gridLabel}>Visits</Text>
+            <Text style={styles.gridLabel}>Medical Appt</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -179,7 +187,7 @@ export default function SurrogateDashboard({ route, navigation }) {
             <View style={[styles.iconBox, { backgroundColor: '#EFF6FF' }]}>
               <Ionicons name="wallet-outline" size={24} color="#3B82F6" />
             </View>
-            <Text style={styles.gridLabel}>Wallet</Text>
+            <Text style={styles.gridLabel}>My Wallet</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -189,7 +197,7 @@ export default function SurrogateDashboard({ route, navigation }) {
             <View style={[styles.iconBox, { backgroundColor: '#FFF7ED' }]}>
               <Ionicons name="chatbubbles-outline" size={24} color="#F97316" />
             </View>
-            <Text style={styles.gridLabel}>Chat</Text>
+            <Text style={styles.gridLabel}>Support Chat</Text>
           </TouchableOpacity>
         </View>
 
@@ -212,7 +220,8 @@ export default function SurrogateDashboard({ route, navigation }) {
           </View>
         )}
 
-        <Text style={styles.sectionHeader}>Support</Text>
+        {/* Support Section */}
+        <Text style={styles.sectionHeader}>Agency Support</Text>
         <TouchableOpacity 
           style={styles.rowCard} 
           onPress={() => Linking.openURL('tel:09016246947')}
@@ -221,8 +230,8 @@ export default function SurrogateDashboard({ route, navigation }) {
             <Ionicons name="call-outline" size={20} color="#4B5563" />
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={styles.rowTitle}>Contact Agency</Text>
-            <Text style={styles.rowSub}>Need help? Call or message us.</Text>
+            <Text style={styles.rowTitle}>Call SDC Support</Text>
+            <Text style={styles.rowSub}>Emergency? Speak with a coordinator.</Text>
           </View>
           <Ionicons name="chevron-forward" size={20} color="#D1D5DB" />
         </TouchableOpacity>
@@ -233,7 +242,7 @@ export default function SurrogateDashboard({ route, navigation }) {
 }
 
 const styles = StyleSheet.create({
-  safeContainer: { flex: 1, backgroundColor: '#FAFAFA' },
+  safeContainer: { flex: 1, backgroundColor: '#F9FAFB' },
   content: { padding: 20 },
 
   // Hero
@@ -241,54 +250,62 @@ const styles = StyleSheet.create({
     backgroundColor: BRAND_GREEN,
     borderRadius: 24,
     padding: 24,
-    marginBottom: 24,
+    marginBottom: 20,
     shadowColor: BRAND_GREEN,
     shadowOpacity: 0.25,
     shadowOffset: { width: 0, height: 8 },
     shadowRadius: 16,
     elevation: 8,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
-  heroWelcome: { color: 'rgba(255,255,255,0.8)', fontSize: 14, fontWeight: '600' },
-  heroRole: { color: '#fff', fontSize: 28, fontWeight: '800', marginTop: 4 },
+  heroWelcome: { color: 'rgba(255,255,255,0.8)', fontSize: 13, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 1 },
+  heroRole: { color: '#fff', fontSize: 26, fontWeight: '900', marginTop: 4 },
+  heroIllustration: { width: 60, height: 60, alignItems: 'center', justifyContent: 'center' },
 
   kycRow: { flexDirection: 'row', alignItems: 'center', marginTop: 12 },
   statusTag: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 20, gap: 6 },
-  statusTagText: { color: '#fff', fontWeight: '600', fontSize: 12 },
+  statusTagText: { color: '#fff', fontWeight: '700', fontSize: 11 },
 
-  progressWrap: { marginTop: 20 },
-  progressLabelRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 },
-  progressText: { color: 'rgba(255,255,255,0.8)', fontSize: 12, fontWeight: '600' },
-  track: { height: 6, backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: 3, overflow: 'hidden' },
-  fill: { height: '100%', backgroundColor: '#fff', borderRadius: 3 },
+  // Progress Card
+  progressCard: { backgroundColor: '#fff', borderRadius: 20, padding: 20, marginBottom: 24, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 10, elevation: 2 },
+  progressLabelRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 },
+  progressLabel: { fontSize: 14, fontWeight: '700', color: '#374151' },
+  progressVal: { fontSize: 14, fontWeight: '800', color: BRAND_GREEN },
+  track: { height: 8, backgroundColor: '#F3F4F6', borderRadius: 4, overflow: 'hidden' },
+  fill: { height: '100%', backgroundColor: BRAND_GREEN, borderRadius: 4 },
+  progressHint: { fontSize: 12, color: '#6B7280', marginTop: 8 },
 
-  sectionHeader: { fontSize: 18, fontWeight: '700', color: '#111827', marginBottom: 12 },
-
-  // Tips
-  tipCard: { backgroundColor: '#FFFBEB', borderRadius: 16, padding: 16, marginBottom: 24, borderWidth: 1, borderColor: '#FEF3C7' },
-  tipHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 },
-  tipTitle: { fontSize: 14, fontWeight: '700', color: '#B45309' },
-  tipBody: { fontSize: 13, color: '#92400E', lineHeight: 20 },
-  tipLink: { alignSelf: 'flex-end', marginTop: 8 },
-  tipLinkText: { color: '#B45309', fontWeight: '700', fontSize: 12 },
+  // Journey Status
+  sectionHeader: { fontSize: 16, fontWeight: '800', color: '#111827', marginBottom: 16, letterSpacing: 0.5 },
+  journeyCard: { backgroundColor: '#fff', borderRadius: 20, padding: 20, marginBottom: 24, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 10, elevation: 2, borderWidth: 1, borderColor: '#F3F4F6' },
+  journeyHeader: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 12 },
+  journeyTitle: { fontSize: 15, fontWeight: '800', color: '#1F2937' },
+  journeyDesc: { fontSize: 13, color: '#4B5563', lineHeight: 20, marginBottom: 16 },
+  journeyStepRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center' },
+  journeyStep: { width: 12, height: 12, borderRadius: 6, backgroundColor: '#E5E7EB' },
+  stepActive: { backgroundColor: BRAND_GREEN, width: 24, borderRadius: 12 },
+  journeyStepLine: { width: 40, height: 2, backgroundColor: '#F3F4F6' },
 
   // Grid
-  grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', marginBottom: 24 },
-  gridItem: { width: '48%', backgroundColor: '#fff', borderRadius: 16, padding: 16, marginBottom: 12, alignItems: 'center', shadowColor: '#000', shadowOpacity: 0.03, shadowRadius: 8, elevation: 2 },
-  iconBox: { width: 48, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center', marginBottom: 12 },
-  gridLabel: { fontSize: 14, fontWeight: '600', color: '#1F2937' },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', marginBottom: 10 },
+  gridItem: { width: '48%', backgroundColor: '#fff', borderRadius: 20, padding: 16, marginBottom: 16, alignItems: 'center', shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 10, elevation: 2 },
+  iconBox: { width: 52, height: 52, borderRadius: 16, alignItems: 'center', justifyContent: 'center', marginBottom: 12 },
+  gridLabel: { fontSize: 13, fontWeight: '700', color: '#374151' },
 
   // Tasks
-  taskCard: { backgroundColor: '#fff', borderRadius: 16, padding: 16, marginBottom: 24, borderWidth: 1, borderColor: '#E5E7EB' },
-  taskHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 },
-  taskTitle: { fontSize: 15, fontWeight: '700', color: '#374151' },
-  taskRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 8, gap: 8 },
-  taskText: { fontSize: 14, color: '#4B5563' },
+  taskCard: { backgroundColor: '#fff', borderRadius: 20, padding: 20, marginBottom: 24, shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 10, elevation: 2 },
+  taskHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 16 },
+  taskTitle: { fontSize: 15, fontWeight: '800', color: '#374151' },
+  taskRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 10, gap: 10 },
+  taskText: { fontSize: 14, color: '#4B5563', fontWeight: '500' },
   taskLink: { marginTop: 8, alignSelf: 'flex-start' },
-  taskLinkText: { color: BRAND_GREEN, fontWeight: '600', fontSize: 13 },
+  taskLinkText: { color: BRAND_GREEN, fontWeight: '700', fontSize: 13 },
 
   // Rows
-  rowCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', padding: 16, borderRadius: 16, marginBottom: 12, gap: 12, shadowColor: '#000', shadowOpacity: 0.03, shadowRadius: 6 },
-  miniIcon: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
-  rowTitle: { fontSize: 15, fontWeight: '600', color: '#111827' },
-  rowSub: { fontSize: 12, color: '#6B7280' },
+  rowCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', padding: 16, borderRadius: 20, marginBottom: 12, gap: 12, shadowColor: '#000', shadowOpacity: 0.03, shadowRadius: 6 },
+  miniIcon: { width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
+  rowTitle: { fontSize: 15, fontWeight: '700', color: '#111827' },
+  rowSub: { fontSize: 12, color: '#6B7280', marginTop: 1 },
 });

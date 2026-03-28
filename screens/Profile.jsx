@@ -1,5 +1,6 @@
 // screens/Profile.jsx
 import React, { useEffect, useState } from 'react';
+import { useNavigation } from '@react-navigation/native';
 import {
   View,
   Text,
@@ -26,7 +27,8 @@ const BG_COLOR = '#F9FAFB';
 
 const { width } = Dimensions.get('window');
 
-export default function Profile({ route, navigation, onLogout }) {
+export default function Profile({ route, navigation: propNavigation, onLogout }) {
+  const navigation = propNavigation || useNavigation();
   const role = route?.params?.role || 'User';
   const userId = route?.params?.userId || '0000-0000';
 
@@ -50,14 +52,15 @@ export default function Profile({ route, navigation, onLogout }) {
   }, [userId]);
 
   const fetchProfile = async () => {
+    console.log('Profile (IP) userId:', userId);
+    setLoading(true);
     try {
-      setLoading(true);
       const data = await kycAPI.getStatus();
       if (data) {
         setProfileData(data.form_data || {});
       }
     } catch (e) {
-      console.log('Profile load error', e?.message || e);
+      console.log('Profile load error', e?.response?.data || e?.message || e);
     } finally {
       setLoading(false);
     }
@@ -148,7 +151,14 @@ export default function Profile({ route, navigation, onLogout }) {
       >
         <SafeAreaView edges={['top']} style={{ flex: 1 }}>
           <View style={styles.headerTop}>
+            <TouchableOpacity 
+              onPress={() => navigation.goBack()}
+              style={styles.backButton}
+            >
+              <Ionicons name="arrow-back" size={24} color="#fff" />
+            </TouchableOpacity>
             <Text style={styles.headerTitle}>My Profile</Text>
+            <View style={{ width: 40 }} /> 
           </View>
         </SafeAreaView>
       </LinearGradient>
@@ -337,9 +347,17 @@ const styles = StyleSheet.create({
     borderBottomRightRadius: 30,
   },
   headerTop: {
-    paddingHorizontal: 20,
+    paddingHorizontal: 12,
     paddingTop: 10,
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  backButton: {
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   headerTitle: {
     color: '#fff',

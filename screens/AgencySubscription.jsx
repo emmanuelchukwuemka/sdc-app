@@ -27,7 +27,7 @@ const FEATURES = [
   'Priority Support',
 ];
 
-export default function AgencySubscription({ userId, onSelect = () => { } }) {
+export default function AgencySubscription({ userId, onSelect = () => { }, onBack }) {
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
 
@@ -119,6 +119,11 @@ export default function AgencySubscription({ userId, onSelect = () => { } }) {
         style={styles.header}
       >
         <View style={styles.headerContent}>
+          {onBack && (
+            <TouchableOpacity onPress={onBack} style={styles.backBtn}>
+              <Ionicons name="arrow-back" size={24} color="#fff" />
+            </TouchableOpacity>
+          )}
           <Text style={styles.headerTitle}>Premium Agency Plan</Text>
           <Text style={styles.headerSubtitle}>
             Unlock full access to the SDC network and start connecting today.
@@ -185,6 +190,13 @@ const styles = StyleSheet.create({
   headerContent: { alignItems: 'center' },
   headerTitle: { fontSize: 26, fontWeight: '900', color: '#fff', textAlign: 'center' },
   headerSubtitle: { color: 'rgba(255,255,255,0.9)', textAlign: 'center', marginTop: 10, fontSize: 14, lineHeight: 20, paddingHorizontal: 10 },
+  backBtn: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    padding: 10,
+    zIndex: 10,
+  },
 
   scroll: { padding: 20, paddingBottom: 40 },
   plansContainer: { gap: 20 },

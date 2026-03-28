@@ -12,11 +12,26 @@ export default function SurrogateTopBar({
   options,
   onOpenProfile,
   onLogout,
+  role = 'SURROGATE', // default to surrogate
 }) {
   const title = options?.title || route?.name || '';
+  
+  const getRoleColor = (roleName) => {
+    switch (roleName?.toUpperCase()) {
+      case 'SURROGATE': return '#22C55E'; // Vibrant Green
+      case 'IP':
+      case 'INTENDING_PARENT': return '#16A34A'; // Mid Green
+      case 'DONOR': return '#15803D'; // Dark Green
+      case 'AGENCY': return '#14532D'; // Deep Green
+      case 'ADMIN': return '#064E3B'; // Very Dark Green
+      default: return '#16A34A';
+    }
+  };
+
+  const bgColor = getRoleColor(role);
 
   return (
-    <SafeAreaView edges={['top']} style={{ backgroundColor: BRAND_GREEN }}>
+    <SafeAreaView edges={['top']} style={{ backgroundColor: bgColor }}>
       <View
         style={{
           height: 56,
@@ -47,10 +62,10 @@ export default function SurrogateTopBar({
           </Text>
         </View>
 
-        {/* Right: Actions (Notifications, Support, Profile, Logout) */}
+        {/* Right: Actions (Notifications, Profile, Logout) */}
         <View
           style={{
-            width: 160,
+            width: 120,
             flexDirection: 'row',
             alignItems: 'center',
             justifyContent: 'flex-end',
@@ -63,15 +78,6 @@ export default function SurrogateTopBar({
             accessibilityLabel="Open notifications"
           >
             <Ionicons name="notifications-outline" size={24} color="#fff" />
-          </TouchableOpacity>
-
-          {/* Support / Dispute */}
-          <TouchableOpacity
-            onPress={() => navigation.navigate('Dispute')}
-            style={{ marginRight: 12 }}
-            accessibilityLabel="Open support"
-          >
-            <Ionicons name="headset-outline" size={24} color="#fff" />
           </TouchableOpacity>
 
           {/* Profile */}

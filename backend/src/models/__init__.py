@@ -78,6 +78,10 @@ class User(db.Model):
     is_active = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
+    # Referral fields
+    referral_code = db.Column(db.String(20), unique=True, index=True)
+    referred_by_id = db.Column(db.String(36), db.ForeignKey('users.id'))
+    
     # Password reset fields
     reset_code = db.Column(db.String(6))
     reset_code_expires_at = db.Column(db.DateTime)

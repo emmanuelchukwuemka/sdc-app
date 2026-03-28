@@ -1,5 +1,6 @@
 // screens/AgencyProfile.jsx
 import React, { useEffect, useState } from 'react';
+import { useNavigation } from '@react-navigation/native';
 import {
   View,
   Text,
@@ -14,16 +15,19 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { marketplaceAPI, uploadAPI, userAPI } from '../services/api';
+import { getApiBaseUrl } from '../services/api-config';
 import * as ImagePicker from 'expo-image-picker';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as ImageManipulator from 'expo-image-manipulator';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const BRAND_GREEN = '#16A34A';
+const BRAND_GREEN = '#14532D';
 const LIGHT_BG = '#F9FAFB';
 const BORDER = '#E5E7EB';
 const TEXT_MUTED = '#6B7280';
 
-export default function AgencyProfile({ navigation, route }) {
+export default function AgencyProfile({ navigation: propNavigation, route }) {
+  const navigation = propNavigation || useNavigation();
   const userId = route?.params?.userId;
   const [loading, setLoading] = useState(true);
   const [kyc, setKyc] = useState(null);
@@ -31,7 +35,12 @@ export default function AgencyProfile({ navigation, route }) {
   const [avatarUploading, setAvatarUploading] = useState(false);
 
   useEffect(() => {
-    if (!userId) return;
+    console.log('AgencyProfile userId:', userId);
+    if (!userId) {
+      console.log('No userId provided to AgencyProfile');
+      setLoading(false);
+      return;
+    }
 
     let mounted = true;
     const fetchAll = async () => {
@@ -43,7 +52,7 @@ export default function AgencyProfile({ navigation, route }) {
           setUser(data.user || null);
         }
       } catch (err) {
-        console.log('Profile fetch error:', err.message);
+        console.log('Profile fetch error:', err.response?.data || err.message || err);
       } finally {
         if (mounted) setLoading(false);
       }
@@ -92,9 +101,22 @@ export default function AgencyProfile({ navigation, route }) {
 
       // Update local state
       setUser(prev => ({ ...(prev || {}), profile_image: publicUrl }));
+
+      // Update AsyncStorage
+      const storedUserData = await AsyncStorage.getItem('userData');
+      if (storedUserData) {
+        const userData = JSON.parse(storedUserData);
+        const newUserData = {
+          ...userData,
+          profile_image: publicUrl
+        };
+        await AsyncStorage.setItem('userData', JSON.stringify(newUserData));
+      }
+
       Alert.alert('Success', 'Profile picture updated successfully');
     } catch (e) {
-      Alert.alert('Upload Failed', e.message || 'Please try again.');
+      console.log('Upload error detail:', e.response?.data || e.message || e);
+      Alert.alert('Upload Failed', e.response?.data?.error || e.message || 'Please try again.');
     } finally {
       setAvatarUploading(false);
     }
@@ -173,7 +195,7 @@ export default function AgencyProfile({ navigation, route }) {
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: BRAND_GREEN }} edges={['top', 'bottom']}>
       <LinearGradient
-        colors={['#16A34A', '#22C55E']}
+        colors={['#14532D', '#166534']}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={styles.header}
@@ -191,7 +213,10 @@ export default function AgencyProfile({ navigation, route }) {
       <View style={styles.heroCard}>
           <TouchableOpacity onPress={onPickAvatar} style={styles.avatarPlaceholder}>
             {user?.profile_image ? (
-              <Image source={{ uri: `http://72.62.4.119:5000${user.profile_image}` }} style={{ width: '100%', height: '100%', borderRadius: 12 }} />
+              <Image 
+                source={{ uri: user.profile_image.startsWith('http') ? user.profile_image : `${getApiBaseUrl().replace('/api', '')}${user.profile_image}` }} 
+                style={{ width: '100%', height: '100%', borderRadius: 12 }} 
+              />
             ) : (
               <Ionicons name="business" size={40} color={BRAND_GREEN} />
             )}

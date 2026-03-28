@@ -55,13 +55,6 @@ export default function IpTopBar({
           </TouchableOpacity>
 
           <TouchableOpacity
-            onPress={() => navigation.navigate('Dispute')}
-            style={{ marginRight: 14 }}
-          >
-            <Ionicons name="headset-outline" size={24} color="#fff" />
-          </TouchableOpacity>
-
-          <TouchableOpacity
             onPress={() =>
               onOpenProfile
                 ? onOpenProfile()

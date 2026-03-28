@@ -146,21 +146,15 @@ class BackendDeployer:
             exit_status = stdout.channel.recv_exit_status()
 
     def initialize_database(self, remote_path="/home/deploy/sdc-backend"):
-        print("Resetting database...")
-        # Remove old database to ensure clean schema
+        print("Running database migrations...")
         stdin, stdout, stderr = self.ssh_client.exec_command(
-            f"cd {remote_path} && rm -f sdc_dev.db instance/sdc_dev.db"
-        )
-        
-        print("Initializing database...")
-        stdin, stdout, stderr = self.ssh_client.exec_command(
-            f"cd {remote_path} && source venv/bin/activate && python init_db.py"
+            f"cd {remote_path} && source venv/bin/activate && python migrate.py"
         )
         exit_status = stdout.channel.recv_exit_status()
         if exit_status != 0:
-            print(f"Warning: Database init warning: {stderr.read().decode()}")
+            print(f"Warning: Migration warning: {stderr.read().decode()}")
         else:
-            print("Database initialized successfully!")
+            print("Database migrated successfully!")
         
         # Create admin user
         print("Creating admin user...")

@@ -1,5 +1,6 @@
 // screens/EditAgencyProfile.jsx
 import React, { useState } from 'react';
+import { useNavigation } from '@react-navigation/native';
 import {
   View,
   Text,
@@ -11,12 +12,14 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { kycAPI } from '../services/api';
+import { kycAPI, userAPI } from '../services/api';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const BRAND_GREEN = '#16A34A';
+const BRAND_GREEN = '#14532D';
 const BORDER = '#E5E7EB';
 
-export default function EditAgencyProfile({ navigation, route }) {
+export default function EditAgencyProfile({ navigation: propNavigation, route }) {
+  const navigation = propNavigation || useNavigation();
   const { userId, formData } = route.params || {};
   const [details, setDetails] = useState(formData?.details || {});
 
@@ -43,6 +46,25 @@ export default function EditAgencyProfile({ navigation, route }) {
         form_progress: 100,
         status: newStatus
       });
+
+      // Update core user model if agency name should be reflected as first_name/last_name
+      // For agencies, we can set first_name to agency_name and last_name to empty or vice versa
+      await userAPI.updateProfile(userId, {
+        first_name: updatedForm.details.agency_name,
+        last_name: ''
+      });
+
+      // Update AsyncStorage
+      const storedUserData = await AsyncStorage.getItem('userData');
+      if (storedUserData) {
+        const userData = JSON.parse(storedUserData);
+        const newUserData = {
+          ...userData,
+          first_name: updatedForm.details.agency_name,
+          last_name: ''
+        };
+        await AsyncStorage.setItem('userData', JSON.stringify(newUserData));
+      }
 
       Alert.alert('Success', 'Agency profile updated successfully');
       navigation.goBack();

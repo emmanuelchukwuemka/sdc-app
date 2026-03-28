@@ -1,4 +1,4 @@
-// components/SurrogateNavigator.jsx
+// components/DonorNavigator.jsx
 import React from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -7,29 +7,28 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Platform, View, Animated } from 'react-native';
 import * as NavigationBar from 'expo-navigation-bar';
 
-import SurrogateTopBar from './SurrogateTopBar';
+import SurrogateTopBar from './SurrogateTopBar'; // We can rename this later to a generic TopBar if needed
 
 // Screens
-
 import Referral from '../screens/Referral';
 import Dispute from '../screens/Dispute';
-import SurrogateDashboard from '../screens/SurrogateDashboard';
+import DonorDashboard from '../screens/DonorDashboard';
 import Chat from '../screens/Chat';
-import SurrogateConnect from '../screens/SurrogateConnect';
+import Marketplace from '../screens/Marketplace';
 
 const Tab = createBottomTabNavigator();
-const BRAND_GREEN = '#22C55E';
+const BRAND_GREEN_DARK = '#15803D';
 
-export default function SurrogateNavigator({ userId, role = 'SURROGATE', onLogout }) {
+export default function DonorNavigator({ userId, role = 'DONOR', onLogout }) {
   React.useEffect(() => {
     if (Platform.OS === 'android') {
-      NavigationBar.setBackgroundColorAsync(BRAND_GREEN).catch(() => {});
+      NavigationBar.setBackgroundColorAsync(BRAND_GREEN_DARK).catch(() => {});
       NavigationBar.setButtonStyleAsync('light').catch(() => {});
     }
   }, []);
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: BRAND_GREEN }} edges={['bottom', 'left', 'right']}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: BRAND_GREEN_DARK }} edges={['bottom', 'left', 'right']}>
       <Tab.Navigator
         screenOptions={({ route, navigation }) => ({
           headerShown: true,
@@ -47,16 +46,16 @@ export default function SurrogateNavigator({ userId, role = 'SURROGATE', onLogou
           tabBarInactiveTintColor: 'rgba(255,255,255,0.6)',
           tabBarStyle: {
             height: 70,
-            backgroundColor: BRAND_GREEN,
+            backgroundColor: BRAND_GREEN_DARK,
             borderTopWidth: 1,
-            borderTopColor: 'rgba(255,255,255,0.2)', // subtle line
+            borderTopColor: 'rgba(255,255,255,0.2)',
           },
           tabBarLabelStyle: { fontWeight: '600', fontSize: 11, marginBottom: 2 },
           tabBarIcon: ({ color, focused }) => {
             let name = 'ellipse-outline';
             switch (route.name) {
-              case 'Connect':
-                name = focused ? 'people' : 'people-outline';
+              case 'Market':
+                name = focused ? 'search' : 'search-outline';
                 break;
               case 'Dashboard':
                 name = focused ? 'speedometer' : 'speedometer-outline';
@@ -69,7 +68,6 @@ export default function SurrogateNavigator({ userId, role = 'SURROGATE', onLogou
                 break;
             }
 
-            // Ripple animation
             const rippleScale = React.useRef(new Animated.Value(0)).current;
             const rippleOpacity = React.useRef(new Animated.Value(0)).current;
 
@@ -114,17 +112,18 @@ export default function SurrogateNavigator({ userId, role = 'SURROGATE', onLogou
         initialRouteName="Dashboard"
       >
         <Tab.Screen
-          name="Connect"
-          options={{ title: 'Connect' }}
-        >
-          {({ navigation }) => <SurrogateConnect userId={userId} navigation={navigation} />}
-        </Tab.Screen>
-        <Tab.Screen
           name="Dashboard"
-          component={SurrogateDashboard}
+          component={DonorDashboard}
           options={{ title: 'Dashboard' }}
           initialParams={{ role, userId }}
         />
+
+        <Tab.Screen
+          name="Market"
+          options={{ title: 'Market' }}
+        >
+          {({ navigation }) => <Marketplace userId={userId} navigation={navigation} />}
+        </Tab.Screen>
 
         <Tab.Screen name="Earn" options={{ title: 'Earn' }}>
           {({ navigation }) => (

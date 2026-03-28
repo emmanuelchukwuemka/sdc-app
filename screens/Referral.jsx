@@ -26,7 +26,7 @@ const ACCENT_WHITE = '#FFFFFF';
 const extra = Constants?.expoConfig?.extra ?? {};
 const REF_BASE = extra.referralBaseUrl || 'https://sdc.example/ref';
 
-export default function Referral({ userId, onBack }) {
+export default function Referral({ userId, onBack, navigation }) {
   const [loading, setLoading] = useState(true);
   const [code, setCode] = useState('');
   const [link, setLink] = useState('');
@@ -52,7 +52,9 @@ export default function Referral({ userId, onBack }) {
 
         if (!on) return;
         setCode(codeData.code);
-        setLink(`${REF_BASE}/${encodeURIComponent(codeData.code)}`);
+        // Remove extra slash if REF_BASE already ends with one or is a query param
+        const separator = (REF_BASE.endsWith('/') || REF_BASE.includes('?')) ? '' : '/';
+        setLink(`${REF_BASE}${separator}${encodeURIComponent(codeData.code)}`);
         setStats(statsData);
       } catch (e) {
         setSaveError(e?.message || String(e));
@@ -92,7 +94,18 @@ export default function Referral({ userId, onBack }) {
   }
 
   return (
-    <SafeAreaView style={styles.safe} edges={['bottom']}>
+    <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
+      {/* Header with Back Button */}
+      <View style={styles.header}>
+        <TouchableOpacity 
+          onPress={() => onBack ? onBack() : navigation?.goBack()} 
+          style={styles.backButton}
+        >
+          <Ionicons name="arrow-back" size={24} color="#111827" />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Refer & Earn</Text>
+        <View style={{ width: 40 }} />
+      </View>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
 
         {/* Premium Header */}
@@ -220,6 +233,28 @@ const styles = StyleSheet.create({
 
   loaderContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#F8FAF9' },
   loaderText: { marginTop: 12, color: '#6B7280', fontWeight: '500' },
+  
+  header: {
+    height: 56,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 8,
+    backgroundColor: '#fff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#F3F4F6',
+  },
+  backButton: {
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#111827',
+  },
 
   // Header
   headerCard: {
